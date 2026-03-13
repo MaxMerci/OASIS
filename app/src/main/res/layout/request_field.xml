@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/inputContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="bottom"
+        android:padding="4dp">
+
+        <EditText
+            android:id="@+id/contentInput"
+            android:padding="10dp"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:maxLines="5"
+            android:textCursorDrawable="@drawable/white_cursor"
+            android:hint="content"
+            android:textColorHint="@color/hint"
+            android:textColor="@color/text"
+            android:inputType="text"
+            android:background="@null" />
+
+        <ImageButton
+            android:id="@+id/sendButton"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:padding="6dp"
+            android:src="@drawable/ic_send"
+            android:background="@drawable/ic_bg_l" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/settingsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="15dp"
+        android:background="@color/bg">
+
+        <CheckBox
+            android:id="@+id/includeReasoning"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="INCLUDE REASONING"
+            android:textColor="@color/text"
+            android:buttonTint="@color/text"
+            android:background="@null" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="10dp"
+            android:text="TEMPERATURE"
+            android:textColor="@color/text"
+            android:textSize="13sp" /> <EditText
+        android:textCursorDrawable="@drawable/white_cursor"
+        android:id="@+id/temperature"
+        android:padding="10dp"
+        android:textSize="13sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColorHint="#888888"
+        android:textColor="@color/text"
+        android:hint="input..."
+        android:inputType="number"
+        android:background="@null" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="10dp"
+            android:text="TOP P"
+            android:textColor="@color/text"
+            android:textSize="13sp" /> <EditText
+        android:textCursorDrawable="@drawable/white_cursor"
+        android:id="@+id/topP"
+        android:padding="10dp"
+        android:textSize="13sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColorHint="@color/hint"
+        android:textColor="@color/text"
+        android:hint="input..."
+        android:inputType="number"
+        android:background="@null" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="10dp"
+            android:text="MAX TOKENS"
+            android:textColor="@color/text"
+            android:textSize="13sp" /> <EditText
+        android:textCursorDrawable="@drawable/white_cursor"
+        android:id="@+id/maxTokens"
+        android:padding="10dp"
+        android:textSize="13sp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColorHint="@color/hint"
+        android:textColor="@color/text"
+        android:hint="input..."
+        android:inputType="number"
+        android:background="@null" />
+    </LinearLayout>
+</merge>

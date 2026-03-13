@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="5dp"
+        android:text="[CHAT_NAME@system]$"
+        android:textColor="@color/hint"
+        android:textSize="12sp" />
+
+    <TextView
+        android:id="@+id/content"
+        android:text="CONTENT"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxWidth="280dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="12dp"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:textColor="#AAAAAA"
+        android:textSize="14sp"
+        android:textAlignment="center" />
+</LinearLayout>

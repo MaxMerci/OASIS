@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="stroke">#2F2F2F</color>
+    <color name="bg">#1D1D1D</color>
+    <color name="hint">#888888</color>
+    <color name="text">#FFFFFF</color>
+</resources>

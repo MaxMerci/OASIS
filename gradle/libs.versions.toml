@@ -1,0 +1,41 @@
+[versions]
+agp = "9.1.0"
+kotlin = "2.3.10"
+coreKtx = "1.18.0"
+junit = "4.13.2"
+junitVersion = "1.3.0"
+espressoCore = "3.7.0"
+appcompat = "1.7.1"
+material = "1.14.0-alpha10"
+ktor = "3.4.1"
+coroutines = "1.10.2"
+securityCrypto = "1.1.0"
+dotsindicator = "5.1.0"
+serialization = "1.10.0"
+compose = "1.13.0"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
+androidx-ui = { group = "androidx ", module = "androidx.compose.ui:ui" }
+androidx-ui-tooling = { group = "androidx ", module = "androidx.compose.ui:ui-tooling" }
+androidx-activity = { group = "androidx ", module = "androidx.activity:activity-compose", version.ref = "compose" }
+com-tbuonomo = { module = "com.tbuonomo:dotsindicator", version.ref = "dotsindicator" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
+androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
+ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
+ktor-client-content-negotiation = { group = "io.ktor", name = "ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.OASIS" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <!-- background & Text -->
+        <item name="android:windowBackground">#161616</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+
+        <!-- font -->
+        <item name="fontFamily">@font/jetbrains_mono_nl_regular</item>
+        <item name="android:fontFamily">@font/jetbrains_mono_nl_regular</item>
+    </style>
+</resources>
