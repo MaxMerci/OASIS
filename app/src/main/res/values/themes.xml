@@ -4,6 +4,8 @@
         <!-- background & Text -->
         <item name="android:windowBackground">#161616</item>
         <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="colorControlNormal">@color/hint</item>
+        <item name="android:textColor">@color/text</item>
 
         <!-- font -->
         <item name="fontFamily">@font/jetbrains_mono_nl_regular</item>

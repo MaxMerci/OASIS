@@ -65,7 +65,7 @@
         android:textSize="13sp"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textColorHint="#888888"
+        android:textColorHint="@color/hint"
         android:textColor="@color/text"
         android:hint="input..."
         android:inputType="number"

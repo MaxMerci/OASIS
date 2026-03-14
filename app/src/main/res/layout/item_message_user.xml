@@ -19,7 +19,7 @@
         android:id="@+id/attachments_container"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:orientation="horizontal"
         android:gravity="end"
         android:layout_marginBottom="4dp" />
 

@@ -1,19 +1,16 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
-
-    kotlin("plugin.serialization") version "1.9.22"
+    alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
-    namespace = "com.maxmerci.oasis"
-    compileSdk {
-        version = release(36)
-    }
+    namespace = "mm.oasis"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.maxmerci.oasis"
-        minSdk = 33
+        applicationId = "mm.oasis"
+        minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -34,18 +31,17 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
+    buildFeatures {
+        compose = true
     }
 }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2024.03.00")
-    implementation(composeBom)
+    implementation(platform(libs.compose.bom))
 
     implementation(libs.androidx.activity)
     debugImplementation(libs.androidx.ui.tooling)
-    
+
     implementation(libs.com.tbuonomo)
     implementation(libs.androidx.ui)
 
