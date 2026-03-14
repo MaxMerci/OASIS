@@ -1,10 +1,12 @@
 package mm.oasis.repository
 
-import mm.oasis.remote.Storage
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
-import kotlin.math.max
+import mm.oasis.remote.Storage
 
 abstract class Repository<T>(
     private val name: String,
@@ -13,35 +15,59 @@ abstract class Repository<T>(
     private val storage = Storage(name)
     private val listSerializer = ListSerializer(itemSerializer)
 
-    @Suppress("UNCHECKED_CAST")
-    var cache: MutableList<T> = (storage.get(name, listSerializer) ?: emptyList()).toMutableList()
-    
-    var currentIndex: Int = (storage.get("current_index", Int.serializer()) ?: 0).let {
-        if (cache.isEmpty()) 0 else it.coerceIn(0, cache.size - 1)
+    private val initialItems = storage.get(name, listSerializer) ?: emptyList()
+    private val initialIndex = (storage.get("current_index", Int.serializer()) ?: 0).let {
+        if (initialItems.isEmpty()) 0 else it.coerceIn(0, initialItems.size - 1)
     }
 
+    private val _state = MutableStateFlow(RepositoryState(initialItems, initialIndex))
+    val state: StateFlow<RepositoryState<T>> = _state.asStateFlow()
+
+    val items: List<T> get() = _state.value.items
+    val currentIndex: Int get() = _state.value.currentIndex
+
     fun add(value: T) {
-        cache.add(value)
-        save()
+        val newItems = items + value
+        val newIndex = newItems.size - 1
+        updateState(newItems, newIndex)
     }
 
     fun remove(value: T) {
-        val i = cache.indexOf(value)
-        if (i != -1) remove(i)
+        val newItems = items.filter { it != value }
+        val newIndex = if (newItems.isEmpty()) 0 else currentIndex.coerceIn(0, newItems.size - 1)
+        updateState(newItems, newIndex)
     }
 
     fun remove(i: Int) {
-        if (i < 0 || i >= cache.size) return
-        cache.removeAt(i)
-        if (currentIndex >= cache.size) {
-            currentIndex = max(0, cache.size - 1)
-        }
-        save()
+        if (i !in items.indices) return
+        val newItems = items.toMutableList().apply { removeAt(i) }
+        val newIndex = if (newItems.isEmpty()) 0 else currentIndex.coerceIn(0, newItems.size - 1)
+        updateState(newItems, newIndex)
     }
 
-    fun save() {
-        storage.put(name, cache, listSerializer)
-        storage.put("current_index", currentIndex, Int.serializer())
+    fun updateIndex(newIndex: Int) {
+        if (items.isEmpty()) return
+        val validated = newIndex.coerceIn(0, items.size - 1)
+        if (currentIndex != validated) {
+            updateState(items, validated)
+        }
+    }
+
+    fun updateItem(index: Int, update: (T) -> T) {
+        if (index !in items.indices) return
+        val newItems = items.toMutableList()
+        newItems[index] = update(newItems[index])
+        updateState(newItems, currentIndex)
+    }
+
+    private fun updateState(newItems: List<T>, newIndex: Int) {
+        _state.value = RepositoryState(newItems, newIndex)
+        save(newItems, newIndex)
+    }
+
+    private fun save(itemsToSave: List<T>, indexToSave: Int) {
+        storage.put(name, itemsToSave, listSerializer)
+        storage.put("current_index", indexToSave, Int.serializer())
         storage.flush()
     }
 }

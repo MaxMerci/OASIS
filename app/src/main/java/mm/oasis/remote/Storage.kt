@@ -24,17 +24,19 @@ class Storage(
         .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
         .build()
 
-    private val encryptedFile = EncryptedFile.Builder(
-        context,
-        file,
-        masterKey,
-        EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
-    ).build()
-
     var cache: MutableMap<String, String> = mutableMapOf()
 
     init {
         load()
+    }
+
+    private fun getEncryptedFile(targetFile: File): EncryptedFile {
+        return EncryptedFile.Builder(
+            context,
+            targetFile,
+            masterKey,
+            EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
+        ).build()
     }
 
     inline fun <reified T> put(key: String, value: T) {
@@ -50,9 +52,7 @@ class Storage(
 
     inline fun <reified T> get(key: String): T? {
         val raw = cache[key] ?: return null
-
         val serializer = json.serializersModule.serializer<T>()
-
         return try {
             json.decodeFromString(serializer, raw)
         } catch (e: Exception) {
@@ -69,35 +69,36 @@ class Storage(
         }
     }
 
-    /*
-    * load data to cache
-    * */
     private fun load() {
         if (!file.exists()) return
 
-        val text = encryptedFile.openFileInput().use {
-            it.readBytes().decodeToString()
-        }
+        try {
+            val text = getEncryptedFile(file).openFileInput().use {
+                it.readBytes().decodeToString()
+            }
 
-        if (text.isBlank()) return
+            if (text.isBlank()) return
 
-        cache = try {
-            json.decodeFromString<Map<String, String>>(text).toMutableMap()
+            cache = json.decodeFromString<Map<String, String>>(text).toMutableMap()
         } catch (e: Exception) {
-            mutableMapOf()
+            e.printStackTrace()
+            cache = mutableMapOf()
         }
     }
 
-    /*
-    * load data to file
-    * */
     fun flush() {
-        if (file.exists()) {
-            file.delete()
-        }
+        try {
+            // Я уже попался на это один раз
+            // EncryptedFile требует, чтобы файл НЕ существовал перед записью
+            if (file.exists()) {
+                file.delete()
+            }
 
-        encryptedFile.openFileOutput().use {
-            it.write(json.encodeToString(cache).toByteArray())
+            getEncryptedFile(file).openFileOutput().use {
+                it.write(json.encodeToString(cache).toByteArray())
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

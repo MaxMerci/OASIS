@@ -57,8 +57,7 @@ class ModelsFragment : Fragment() {
             }
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 // СЕЙЧАС
-                val query = s.toString()
-                modelsAdapter.filter(query)
+                modelsAdapter.filter(s.toString())
             }
             override fun afterTextChanged(s: Editable?) {
                 // ПОСЛЕ
@@ -69,8 +68,14 @@ class ModelsFragment : Fragment() {
             setCurrent(modelsAdapter.getItem(position))
         }
 
+        lifecycleScope.launch {
+            ProfileRepository.state.collect {
+                loadModels()
+            }
+        }
+
         loadModels()
-        setCurrent(ProfileRepository.currentProfile.model)
+        setCurrent(ProfileRepository.currentProfile?.model)
     }
 
     fun loadModels() {
@@ -87,8 +92,10 @@ class ModelsFragment : Fragment() {
     @SuppressLint("SetTextI18n")
     fun setCurrent(model: LLMRaw?) {
         if (model != null) {
-            ProfileRepository.currentProfile.model = model
-            ProfileRepository.save()
+            ProfileRepository.updateItem(ProfileRepository.currentIndex) { currentProfile ->
+                currentProfile.copy(model = model)
+            }
+            println(ProfileRepository.items)
 
             /* ID */
             currentModelId.text = model.id

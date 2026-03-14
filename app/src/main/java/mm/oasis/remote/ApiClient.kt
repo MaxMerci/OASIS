@@ -39,7 +39,7 @@ object ApiClient{
         }
 
         defaultRequest {
-            header(HttpHeaders.Authorization, "Bearer ${ProfileRepository.currentProfile.apiKey}")
+            header(HttpHeaders.Authorization, "Bearer ${ProfileRepository.currentProfile?.apiKey}")
             header(HttpHeaders.ContentType, ContentType.Application.Json)
             header("Cache-Control", "no-cache")
             header("Expect", "")
@@ -47,7 +47,7 @@ object ApiClient{
     }
 
     fun generateTextStream(request: Request): Flow<ChatCompletionChunk> = channelFlow {
-        client.preparePost("${ProfileRepository.currentProfile.endPoint.trimEnd('/')}/chat/completions") {
+        client.preparePost("${ProfileRepository.currentProfile!!.endPoint.trimEnd('/')}/chat/completions") {
             setBody(request.copy(stream = true))
         }.execute { response ->
             if (!response.status.isSuccess()) throw Exception(response.bodyAsText())
@@ -74,11 +74,16 @@ object ApiClient{
 
     suspend fun fetchModels(): LLMResponse {
         val profile = ProfileRepository.currentProfile
-
-        val baseUrl = profile.endPoint.trimEnd('/')
-
+        val baseUrl = profile?.endPoint?.trimEnd('/')
         val url = "$baseUrl/models"
 
-        return client.get(url).body<LLMResponse>()
+        val response = client.get(url)
+
+        if (response.status.value != 200) {
+            val errorText = response.bodyAsText()
+            throw IllegalStateException("API Error ${response.status}: $errorText")
+        }
+
+        return response.body<LLMResponse>()
     }
 }

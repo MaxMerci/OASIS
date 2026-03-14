@@ -1,0 +1,164 @@
+package mm.oasis.ui.modal
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.text.InputType
+import android.util.Patterns
+import android.view.LayoutInflater
+import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
+import androidx.core.widget.addTextChangedListener
+import mm.oasis.R
+
+enum class FieldType {
+    TEXT,
+    NUMBER,
+    URL
+}
+
+data class DialogField(
+    val key: String,
+    val title: String,
+    val type: FieldType,
+    val required: Boolean = false,
+    val defaultValue: String? = null
+)
+
+data class DialogButton(
+    val text: String,
+    val layoutRes: Int = R.layout.dialog_button,
+    val onClick: (() -> Unit)? = null
+)
+
+class ModalDialogBuilder(private val context: Context) {
+
+    private val fields = mutableListOf<DialogField>()
+    private val buttons = mutableListOf<DialogButton>()
+
+    private var onOk: ((Map<String, String?>) -> Unit)? = null
+
+    fun addField(field: DialogField): ModalDialogBuilder {
+        fields.add(field)
+        return this
+    }
+
+    fun addButton(button: DialogButton): ModalDialogBuilder {
+        buttons.add(button)
+        return this
+    }
+
+    fun onOk(listener: (Map<String, String?>) -> Unit): ModalDialogBuilder {
+        onOk = listener
+        return this
+    }
+
+    @SuppressLint("SetTextI18n")
+    fun show() {
+        val view = LayoutInflater.from(context)
+            .inflate(R.layout.dialog_constructor, null)
+
+        val fieldsContainer = view.findViewById<LinearLayout>(R.id.fieldsContainer)
+        val buttonsContainer = view.findViewById<LinearLayout>(R.id.buttonsContainer)
+
+        val fieldViews = mutableMapOf<String, EditText>()
+
+        fields.forEach { field ->
+
+            val fieldView = LayoutInflater.from(context)
+                .inflate(R.layout.dialog_field, fieldsContainer, false)
+
+            val title = fieldView.findViewById<TextView>(R.id.fieldTitle)
+            val input = fieldView.findViewById<EditText>(R.id.fieldInput)
+
+            title.text = field.title
+
+            when(field.type){
+                FieldType.TEXT -> input.inputType = InputType.TYPE_CLASS_TEXT
+                FieldType.NUMBER -> input.inputType = InputType.TYPE_CLASS_NUMBER
+                FieldType.URL -> input.inputType = InputType.TYPE_TEXT_VARIATION_URI
+            }
+
+            field.defaultValue?.let {
+                input.setText(it)
+            }
+
+            fieldsContainer.addView(fieldView)
+            fieldViews[field.key] = input
+        }
+
+        val dialog = AlertDialog.Builder(context)
+            .setView(view)
+            .create()
+
+        buttons.forEach { btn ->
+            val b = LayoutInflater.from(context)
+                .inflate(btn.layoutRes, buttonsContainer, false) as Button
+
+            b.text = btn.text
+            b.setOnClickListener {
+                btn.onClick?.invoke()
+
+                val nullMap = fields.associate { it.key to null }
+                onOk?.invoke(nullMap)
+
+                dialog.dismiss()
+            }
+
+            buttonsContainer.addView(b)
+        }
+
+        val okButton = LayoutInflater.from(context)
+            .inflate(R.layout.dialog_button_l, buttonsContainer, false) as Button
+        okButton.text = "OK"
+        okButton.isEnabled = false
+
+        buttonsContainer.addView(okButton)
+
+        fun validate(fieldViews: Map<String, EditText>): Boolean {
+            for (field in fields) {
+
+                val value = fieldViews[field.key]?.text?.toString()?.trim() ?: ""
+
+                if (field.required && value.isEmpty()) {
+                    return false
+                }
+
+                when (field.type) {
+                    FieldType.URL -> {
+                        if (value.isNotEmpty() && !Patterns.WEB_URL.matcher(value).matches()) {
+                            return false
+                        }
+                    }
+                    else -> {}
+                }
+            }
+
+            return true
+        }
+
+        fieldViews.values.forEach { editText ->
+            editText.addTextChangedListener {
+                okButton.isEnabled = validate(fieldViews)
+            }
+        }
+
+        okButton.setOnClickListener {
+
+            val result = mutableMapOf<String, String?>()
+
+            fields.forEach { field ->
+                result[field.key] =
+                    fieldViews[field.key]?.text?.toString()
+            }
+
+            onOk?.invoke(result)
+
+            dialog.dismiss()
+        }
+
+        dialog.show()
+    }
+}

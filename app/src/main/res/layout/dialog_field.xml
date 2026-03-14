@@ -1,0 +1,27 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/fieldTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingLeft="10dp"
+        android:text="VALUE NAME"
+        android:textColor="@color/hint"
+        android:textSize="13sp" /> <EditText
+    android:textCursorDrawable="@drawable/white_cursor"
+    android:id="@+id/fieldInput"
+    android:padding="10dp"
+    android:textSize="13sp"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:textColorHint="@color/hint"
+    android:textColor="@color/text"
+    android:hint="input..."
+    android:inputType="number"
+    android:background="@null" />
+
+</LinearLayout>

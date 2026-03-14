@@ -73,7 +73,7 @@ class RequestView @JvmOverloads constructor(
             val topP = topP.text.toString()
 
             if (content.isNotBlank()) {
-                request.model = ProfileRepository.currentProfile.model?.id ?: "MODEL NOT SELECTED"
+                request.model = ProfileRepository.currentProfile?.model?.id ?: "MODEL NOT SELECTED"
                 request.includeReasoning = includeReasoning.isChecked
                 request.maxTokens = if (maxTokens.isNotBlank()) maxTokens.toInt() else null
                 request.temperature = if (temperature.isNotBlank()) temperature.toDouble() else 1.0
@@ -90,7 +90,7 @@ class RequestView @JvmOverloads constructor(
                                 )
                             )
                         ),
-                        name = ProfileRepository.currentProfile.endpointDomain(),
+                        name = ProfileRepository.currentProfile?.endpointDomain(),
                     )
                 )
                 onSend?.invoke(request)

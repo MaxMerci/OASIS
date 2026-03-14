@@ -1,0 +1,15 @@
+<android.widget.Button
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/dialogButton"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="NAME"
+    android:minHeight="0dp"
+    android:minWidth="40dp"
+    android:padding="12dp"
+    android:layout_margin="6dp"
+    android:textSize="13sp"
+    android:textColor="@color/stroke"
+    android:background="@drawable/ic_bg_l"
+    android:textAllCaps="false"
+    style="@style/Widget.AppCompat.Button" />

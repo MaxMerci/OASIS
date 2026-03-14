@@ -3,32 +3,24 @@ package mm.oasis.repository
 import mm.oasis.serialization.storage.ChatData
 
 object ChatRepository : Repository<ChatData>("chats", ChatData.serializer()) {
-    private var _currentChat: ChatData? = null
 
-    var chats: MutableList<ChatData>
-        get() = cache
-        set(v) { cache = v }
+    init {
+        if (items.isEmpty()) {
+            add(ChatData(name = "New Chat"))
+        }
+    }
 
-    var currentChat: ChatData
-        get() {
-            if (_currentChat == null) {
-                if (chats.isEmpty()) {
-                    val newChat = ChatData(name = "New Chat")
-                    chats.add(newChat)
-                    currentIndex = 0
-                    _currentChat = newChat
-                } else {
-                    if (currentIndex < 0 || currentIndex >= chats.size) currentIndex = 0
-                    _currentChat = chats[currentIndex]
-                }
-            }
-            return _currentChat!!
+    val currentChat: ChatData
+        get() = items[currentIndex]
+
+    fun selectChat(chat: ChatData) {
+        val idx = items.indexOf(chat)
+        if (idx != -1) {
+            updateIndex(idx)
         }
-        set(v) {
-            val idx = chats.indexOf(v)
-            if (idx != -1) {
-                currentIndex = idx
-                _currentChat = v
-            }
-        }
+    }
+
+    fun updateCurrentChat(update: (ChatData) -> ChatData) {
+        updateItem(currentIndex, update)
+    }
 }

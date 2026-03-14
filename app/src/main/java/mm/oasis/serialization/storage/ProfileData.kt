@@ -6,8 +6,8 @@ import java.net.URI
 
 @Serializable
 data class ProfileData(
-    val apiKey: String,
-    val endPoint: String,
+    var apiKey: String,
+    var endPoint: String,
     var model: LLMRaw? = null,
 ) {
     fun endpointDomain(): String? {

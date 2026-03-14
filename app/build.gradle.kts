@@ -40,6 +40,7 @@ dependencies {
     implementation(platform(libs.compose.bom))
 
     implementation(libs.androidx.activity)
+    implementation(libs.androidx.runtime)
     debugImplementation(libs.androidx.ui.tooling)
 
     implementation(libs.com.tbuonomo)

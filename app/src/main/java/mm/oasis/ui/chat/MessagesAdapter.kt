@@ -12,7 +12,7 @@ import mm.oasis.repository.ChatRepository
 import mm.oasis.serialization.dto.Message
 import mm.oasis.serialization.dto.MessageContent
 
-class MessagesAdapter() : BaseAdapter() {
+class MessagesAdapter : BaseAdapter() {
     override fun getCount() = ChatRepository.currentChat.messages.size
     override fun getItem(position: Int) = ChatRepository.currentChat.messages[position]
     override fun getItemId(position: Int) = position.toLong()

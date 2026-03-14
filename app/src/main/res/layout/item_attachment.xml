@@ -3,7 +3,7 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:padding="8dp"
-    android:background="@drawable/ic_file">
+    android:background="@drawable/ic_bg_l">
 
     <TextView
         android:id="@+id/attachment_name"

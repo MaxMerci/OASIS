@@ -32,7 +32,7 @@
             android:layout_height="48dp"
             android:padding="6dp"
             android:src="@drawable/ic_send"
-            android:background="@drawable/ic_bg_l" />
+            android:background="@drawable/ic_bg_g" />
     </LinearLayout>
 
     <LinearLayout

@@ -23,13 +23,21 @@ class MainActivity : AppCompatActivity() {
 
         Oasis.init(this)
 
-        if (ProfileRepository.profiles.isEmpty())
+        if (ProfileRepository.items.size != 2) {
+            println("----------------------- PROFILES ADD -----------------------")
             ProfileRepository.add(
                 ProfileData(
-                    "...",
+                    "",
                     "https://api.laozhang.ai/v1"
-                )
+                ),
             )
+            ProfileRepository.add(
+                ProfileData(
+                    "",
+                    "https://openrouter.ai/api/v1"
+                ),
+            )
+        }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
