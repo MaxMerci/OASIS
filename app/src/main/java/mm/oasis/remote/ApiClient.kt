@@ -14,6 +14,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.readUTF8Line
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import okhttp3.Protocol
 import java.util.concurrent.TimeUnit
@@ -24,6 +25,10 @@ private val json = kotlinx.serialization.json.Json {
 }
 
 object ApiClient{
+    private var generationJob: Job? = null
+    var generating = false
+        private set
+
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) { json(json) }
 
@@ -47,32 +52,54 @@ object ApiClient{
     }
 
     fun generateTextStream(request: Request): Flow<ChatCompletionChunk> = channelFlow {
-        client.preparePost("${ProfileRepository.currentProfile!!.endPoint.trimEnd('/')}/chat/completions") {
-            setBody(request.copy(stream = true))
-        }.execute { response ->
-            if (!response.status.isSuccess()) throw Exception(response.bodyAsText())
+        generating = true
+        generationJob = coroutineContext[Job]
 
-            val channel = response.bodyAsChannel()
-            while (!channel.isClosedForRead) {
-                val line = channel.readUTF8Line() ?: break
+        try {
+            client.preparePost("${ProfileRepository.currentProfile!!.endPoint.trimEnd('/')}/chat/completions") {
+                setBody(request.copy(stream = true))
+            }.execute { response ->
+                if (!response.status.isSuccess()) throw Exception(response.bodyAsText())
 
-                if (line.startsWith("data: ")) {
-                    val data = line.removePrefix("data: ").trim()
-                    if (data == "[DONE]") break
-                    if (data.isEmpty()) continue
+                val channel = response.bodyAsChannel()
+                while (!channel.isClosedForRead) {
+                    val line = channel.readUTF8Line() ?: break
 
-                    try {
+                    if (line.startsWith("data: ")) {
+                        val data = line.removePrefix("data: ").trim()
+                        if (data == "[DONE]") return@execute
+
                         val chunk = json.decodeFromString<ChatCompletionChunk>(data)
                         send(chunk)
-                    } catch (e: Exception) {}
-                } else {
-                    if (line.contains("error")) throw Exception(line)
+                    }
                 }
             }
+        } finally {
+            generating = false
+            generationJob = null
         }
     }
 
+    fun stop() {
+        generationJob?.cancel()
+        generationJob = null
+        generating = false
+    }
+
     suspend fun fetchModels(): LLMResponse {
+        val avatars = mapOf(
+            "gpt" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://chatgpt.com",
+            "claude" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://claude.ai",
+            "gemini" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://google.com",
+            "gemma" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://google.com",
+            "meta" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://chatgpt.com",
+            "mistralai" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://mistral.ai",
+            "mistral" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://mistral.ai",
+            "cohere" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://cohere.com/",
+            "grok" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://grok.com/"
+        )
+        val defaultAvatar = "https://alduris.github.io/watcher-map/embed.png" // да я люблю рв
+
         val profile = ProfileRepository.currentProfile
         val baseUrl = profile?.endPoint?.trimEnd('/')
         val url = "$baseUrl/models"
@@ -84,6 +111,25 @@ object ApiClient{
             throw IllegalStateException("API Error ${response.status}: $errorText")
         }
 
-        return response.body<LLMResponse>()
+        val r = response.body<LLMResponse>()
+
+        for (l in r.data) {
+            if (l.ownedBy == null && l.id.contains("/")) {
+                if (l.tokenizer != null) l.ownedBy = l.tokenizer
+                else l.ownedBy = l.id.split("/")[0]
+            }
+            if (l.name == null) {
+                l.name = l.id
+            }
+            if (l.avatarUrl == null) {
+                for ((c, a) in avatars.entries) {
+                    if (l.id.contains(c)) l.avatarUrl = a
+                    break
+                }
+                if (l.avatarUrl == null) l.avatarUrl = defaultAvatar
+            }
+        }
+
+        return r
     }
 }

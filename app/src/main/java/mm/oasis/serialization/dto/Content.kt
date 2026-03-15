@@ -3,9 +3,7 @@ package mm.oasis.serialization.dto
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonClassDiscriminator
-import java.io.File
 
 @Serializable(with = MessageContentSerializer::class)
 sealed class MessageContent {
@@ -23,21 +21,21 @@ sealed class ContentPart {
     @SerialName("text")
     data class TextPart(
         val text: String,
-        @Transient override val fileName: String? = null
+        @SerialName("file_name") override val fileName: String? = null
     ) : ContentPart()
 
     @Serializable
     @SerialName("image_url")
     data class ImagePart(
         @SerialName("image_url") val imageUrl: ImageUrl,
-        @Transient override val fileName: String? = null
+        @SerialName("file_name") override val fileName: String? = null
     ) : ContentPart()
 
     @Serializable
     @SerialName("input_audio")
     data class AudioPart(
         @SerialName("input_audio") val inputAudio: InputAudio,
-        @Transient override val fileName: String? = null
+        @SerialName("file_name") override val fileName: String? = null
     ) : ContentPart()
 }
 

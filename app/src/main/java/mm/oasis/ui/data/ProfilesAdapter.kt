@@ -8,28 +8,33 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import mm.oasis.R
 import mm.oasis.repository.ProfileRepository
-import mm.oasis.ui.modal.DialogButton
-import mm.oasis.ui.modal.DialogField
-import mm.oasis.ui.modal.FieldType
-import mm.oasis.ui.modal.ModalDialogBuilder
 
 class ProfilesAdapter(
     private val onProfileClick: (Int) -> Unit,
     private val onLongClick: (Int) -> Unit
 ) : RecyclerView.Adapter<ProfilesAdapter.ProfileViewHolder>() {
-    override fun getItemCount() = ProfileRepository.items.size
+
+    companion object {
+        const val TYPE_ADD = 2
+        const val TYPE_SELECTED = 1
+        const val TYPE_NORMAL = 0
+    }
+
+    override fun getItemCount() = ProfileRepository.items.size + 1
 
     override fun getItemViewType(position: Int): Int {
-        return if (ProfileRepository.currentIndex == position) 1 else 0
+        if (position == 0) return TYPE_ADD
+
+        val dataIndex = position - 1
+        return if (ProfileRepository.currentIndex == dataIndex) TYPE_SELECTED else TYPE_NORMAL
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProfileViewHolder {
-        val layout = if (viewType == 1) {
-            R.layout.item_profile_c
-        } else {
-            R.layout.item_profile
+        val layout = when (viewType) {
+            TYPE_ADD -> R.layout.item_profile_add
+            TYPE_SELECTED -> R.layout.item_profile_c
+            else -> R.layout.item_profile
         }
-
         val view = LayoutInflater.from(parent.context).inflate(layout, parent, false)
         return ProfileViewHolder(view)
     }
@@ -39,25 +44,35 @@ class ProfilesAdapter(
     }
 
     inner class ProfileViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val endPoint: TextView = itemView.findViewById(R.id.endPoint)
-        private val currentModel: TextView = itemView.findViewById(R.id.currentModel)
+        private val endPoint: TextView? = itemView.findViewById(R.id.endPoint)
+        private val currentModel: TextView? = itemView.findViewById(R.id.currentModel)
 
         @SuppressLint("SetTextI18n", "NotifyDataSetChanged")
         fun bind(position: Int) {
-            val profile = ProfileRepository.items[position]
+            val viewType = itemViewType
 
-            endPoint.text = profile.endPoint
-            currentModel.text = profile.model?.id ?: "MODEL NOT SPECIFIED"
+            if (viewType == TYPE_ADD) {
+                itemView.setOnClickListener {
+                    onProfileClick(-1)
+                }
+                itemView.setOnLongClickListener(null)
+            } else {
+                val dataIndex = position - 1
+                val profile = ProfileRepository.items[dataIndex]
 
-            itemView.setOnClickListener {
-                onProfileClick(position)
-                notifyDataSetChanged()
-            }
+                endPoint?.text = profile.endPoint
+                currentModel?.text = profile.model?.id ?: "MODEL NOT SPECIFIED"
 
-            itemView.setOnLongClickListener {
-                onLongClick(position)
-                notifyDataSetChanged()
-                true
+                itemView.setOnClickListener {
+                    onProfileClick(dataIndex)
+                    notifyDataSetChanged()
+                }
+
+                itemView.setOnLongClickListener {
+                    onLongClick(dataIndex)
+                    notifyDataSetChanged()
+                    true
+                }
             }
         }
     }

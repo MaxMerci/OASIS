@@ -11,8 +11,8 @@ data class Message(
     var reasoning: String? = null,
     @SerialName("tool_calls") val toolCalls: List<ToolCall>? = null,
     @SerialName("tool_call_id") val toolCallId: String? = null,
-    @Transient val name: String? = null,
-    val avatarUrl: String? = null,
+    val name: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
 ) {
     val display: String
         get() = when (val c = content) {

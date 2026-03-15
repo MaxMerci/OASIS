@@ -12,10 +12,10 @@ import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import androidx.recyclerview.widget.RecyclerView
 import mm.oasis.R
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.ContentPart
-import mm.oasis.serialization.dto.ImageUrl
 import mm.oasis.serialization.dto.Message
 import mm.oasis.serialization.dto.MessageContent
 import mm.oasis.serialization.dto.Request
@@ -31,19 +31,27 @@ class RequestView @JvmOverloads constructor(
     /* MAIN */
     var request = Request()
     var onSend: ((Request) -> Unit)? = null
+    var onAddAttachment: (() -> Unit)? = null
+
     /* VALUES */
     private val content: EditText
     private val settingsContainer: View
     private val send: ImageButton
+    private val addAttachment: ImageButton
     private val includeReasoning: CheckBox
     private val temperature: EditText
     private val topP: EditText
     private val maxTokens: EditText
+    private val attachmentsList: RecyclerView
+    private val attachmentsAdapter: AttachmentsAdapter
+
     /* ANIM */
     private var fullSettingsHeight = 0
     private var initialY = 0f
     private var initialHeight = 0
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+
+    private var isGenerating = false
 
     init {
         orientation = VERTICAL
@@ -51,11 +59,18 @@ class RequestView @JvmOverloads constructor(
 
         content = findViewById(R.id.contentInput)
         send = findViewById(R.id.sendButton)
+        addAttachment = findViewById(R.id.addAttachment)
         includeReasoning = findViewById(R.id.includeReasoning)
         temperature = findViewById(R.id.temperature)
         topP = findViewById(R.id.topP)
         maxTokens = findViewById(R.id.maxTokens)
         settingsContainer = findViewById(R.id.settingsContainer)
+        attachmentsList = findViewById(R.id.attachmentsList)
+
+        attachmentsAdapter = AttachmentsAdapter { _ ->
+            updateAttachmentsVisibility()
+        }
+        attachmentsList.adapter = attachmentsAdapter
 
         settingsContainer.visibility = VISIBLE
         settingsContainer.measure(
@@ -66,31 +81,41 @@ class RequestView @JvmOverloads constructor(
 
         updateSettingsHeight(0)
 
-        send.setOnClickListener {
-            val content = content.text.toString()
-            val maxTokens = maxTokens.text.toString()
-            val temperature = temperature.text.toString()
-            val topP = topP.text.toString()
+        addAttachment.setOnClickListener {
+            onAddAttachment?.invoke()
+        }
 
-            if (content.isNotBlank()) {
+        send.setOnClickListener {
+            if (isGenerating) {
+                onSend?.invoke(Request())
+                return@setOnClickListener
+            }
+
+            val contentText = content.text.toString()
+            val maxTokensText = maxTokens.text.toString()
+            val temperatureText = temperature.text.toString()
+            val topPText = topP.text.toString()
+            val attachments = attachmentsAdapter.getItems()
+
+            if (contentText.isNotBlank() || attachments.isNotEmpty()) {
                 request.model = ProfileRepository.currentProfile?.model?.id ?: "MODEL NOT SELECTED"
                 request.includeReasoning = includeReasoning.isChecked
-                request.maxTokens = if (maxTokens.isNotBlank()) maxTokens.toInt() else null
-                request.temperature = if (temperature.isNotBlank()) temperature.toDouble() else 1.0
-                request.topP = if (topP.isNotBlank()) topP.toDouble() else null
+                request.maxTokens = if (maxTokensText.isNotBlank()) maxTokensText.toInt() else null
+                request.temperature = if (temperatureText.isNotBlank()) temperatureText.toDouble() else 1.0
+                request.topP = if (topPText.isNotBlank()) topPText.toDouble() else null
+
+                val parts = mutableListOf<ContentPart>()
+                if (contentText.isNotBlank()) {
+                    parts.add(ContentPart.TextPart(contentText))
+                }
+                parts.addAll(attachments)
+
                 request.messages = listOf(
                     Message(
+                        avatarUrl = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${ProfileRepository.currentProfile?.endPoint}",
                         role = Message.MessageRole.USER,
-                        content = MessageContent.Parts(
-                            listOf(
-                                ContentPart.TextPart(content),
-                                ContentPart.ImagePart(
-                                    ImageUrl(url = "data:image/jpeg;base64,{BASE64}"),
-                                    "image.jpg"
-                                )
-                            )
-                        ),
-                        name = ProfileRepository.currentProfile?.endpointDomain(),
+                        content = MessageContent.Parts(parts),
+                        name = ProfileRepository.currentProfile?.endpointDomain() ?: "YOU",
                     )
                 )
                 onSend?.invoke(request)
@@ -131,9 +156,29 @@ class RequestView @JvmOverloads constructor(
         return true
     }
 
+    fun addAttachment(part: ContentPart) {
+        attachmentsAdapter.addItem(part)
+        updateAttachmentsVisibility()
+    }
+
+    private fun updateAttachmentsVisibility() {
+        attachmentsList.visibility = if (attachmentsAdapter.itemCount > 0) VISIBLE else GONE
+    }
+
     fun clear() {
         request = Request()
         content.text.clear()
+        attachmentsAdapter.clear()
+        updateAttachmentsVisibility()
+    }
+
+    fun setGenerating(generating: Boolean) {
+        this.isGenerating = generating
+        if (generating) {
+            send.setImageResource(R.drawable.ic_stop)
+        } else {
+            send.setImageResource(R.drawable.ic_send)
+        }
     }
 
     private fun updateSettingsHeight(height: Int) {

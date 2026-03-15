@@ -5,6 +5,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ChatData(
-    val name: String = "",
+    var name: String = "",
     val messages: MutableList<Message> = mutableListOf()
 )

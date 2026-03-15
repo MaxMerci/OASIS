@@ -39,6 +39,7 @@ class ModalDialogBuilder(private val context: Context) {
     private val buttons = mutableListOf<DialogButton>()
 
     private var onOk: ((Map<String, String?>) -> Unit)? = null
+    private var onCancel: (() -> Unit)? = null
 
     fun addField(field: DialogField): ModalDialogBuilder {
         fields.add(field)
@@ -55,18 +56,23 @@ class ModalDialogBuilder(private val context: Context) {
         return this
     }
 
+    fun onCancel(listener: () -> Unit): ModalDialogBuilder {
+        onCancel = listener
+        return this
+    }
+
     @SuppressLint("SetTextI18n")
     fun show() {
         val view = LayoutInflater.from(context)
             .inflate(R.layout.dialog_constructor, null)
 
         val fieldsContainer = view.findViewById<LinearLayout>(R.id.fieldsContainer)
-        val buttonsContainer = view.findViewById<LinearLayout>(R.id.buttonsContainer)
+        val customButtonsContainer = view.findViewById<LinearLayout>(R.id.customButtonsContainer)
+        val defaultButtonsContainer = view.findViewById<LinearLayout>(R.id.defaultButtonsContainer)
 
         val fieldViews = mutableMapOf<String, EditText>()
 
         fields.forEach { field ->
-
             val fieldView = LayoutInflater.from(context)
                 .inflate(R.layout.dialog_field, fieldsContainer, false)
 
@@ -95,7 +101,7 @@ class ModalDialogBuilder(private val context: Context) {
 
         buttons.forEach { btn ->
             val b = LayoutInflater.from(context)
-                .inflate(btn.layoutRes, buttonsContainer, false) as Button
+                .inflate(btn.layoutRes, customButtonsContainer, false) as Button
 
             b.text = btn.text
             b.setOnClickListener {
@@ -107,19 +113,24 @@ class ModalDialogBuilder(private val context: Context) {
                 dialog.dismiss()
             }
 
-            buttonsContainer.addView(b)
+            customButtonsContainer.addView(b)
         }
 
-        val okButton = LayoutInflater.from(context)
-            .inflate(R.layout.dialog_button_l, buttonsContainer, false) as Button
-        okButton.text = "OK"
-        okButton.isEnabled = false
+        val cancelButton = LayoutInflater.from(context)
+            .inflate(R.layout.dialog_button, defaultButtonsContainer, false) as Button
+        cancelButton.text = "CANCEL"
+        cancelButton.setOnClickListener {
+            onCancel?.invoke()
+            dialog.dismiss()
+        }
+        defaultButtonsContainer.addView(cancelButton)
 
-        buttonsContainer.addView(okButton)
+        val okButton = LayoutInflater.from(context)
+            .inflate(R.layout.dialog_button_l, defaultButtonsContainer, false) as Button
+        okButton.text = "OK"
 
         fun validate(fieldViews: Map<String, EditText>): Boolean {
             for (field in fields) {
-
                 val value = fieldViews[field.key]?.text?.toString()?.trim() ?: ""
 
                 if (field.required && value.isEmpty()) {
@@ -135,9 +146,10 @@ class ModalDialogBuilder(private val context: Context) {
                     else -> {}
                 }
             }
-
             return true
         }
+
+        okButton.isEnabled = validate(fieldViews)
 
         fieldViews.values.forEach { editText ->
             editText.addTextChangedListener {
@@ -146,18 +158,17 @@ class ModalDialogBuilder(private val context: Context) {
         }
 
         okButton.setOnClickListener {
-
             val result = mutableMapOf<String, String?>()
 
             fields.forEach { field ->
-                result[field.key] =
-                    fieldViews[field.key]?.text?.toString()
+                result[field.key] = fieldViews[field.key]?.text?.toString()
             }
 
             onOk?.invoke(result)
-
             dialog.dismiss()
         }
+
+        defaultButtonsContainer.addView(okButton)
 
         dialog.show()
     }

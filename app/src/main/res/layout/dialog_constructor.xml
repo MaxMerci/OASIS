@@ -12,11 +12,26 @@
         android:layout_height="wrap_content"/>
 
     <LinearLayout
-        android:id="@+id/buttonsContainer"
         android:orientation="horizontal"
-        android:gravity="end"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"/>
+        android:layout_marginTop="16dp">
+
+        <LinearLayout
+            android:id="@+id/customButtonsContainer"
+            android:orientation="horizontal"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="start|center_vertical"/>
+
+        <LinearLayout
+            android:id="@+id/defaultButtonsContainer"
+            android:orientation="horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="end|center_vertical"/>
+
+    </LinearLayout>
 
 </LinearLayout>

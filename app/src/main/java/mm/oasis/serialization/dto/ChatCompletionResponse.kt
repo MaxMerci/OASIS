@@ -3,6 +3,8 @@ package mm.oasis.serialization.dto
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/* ОТВЕТ БЕЗ СТРИМИНГА, НЕ ИСПОЛЬЗУЕТСЯ, НО ЕСТЬ */
+
 @Serializable
 data class ChatCompletionResponse(
     val id: String,

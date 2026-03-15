@@ -8,8 +8,6 @@ import androidx.core.view.WindowCompat
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
-import mm.oasis.repository.ProfileRepository
-import mm.oasis.serialization.storage.ProfileData
 import mm.oasis.ui.chat.ChatFragment
 import mm.oasis.ui.data.DataFragment
 import mm.oasis.ui.models.ModelsFragment
@@ -22,22 +20,6 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         Oasis.init(this)
-
-        if (ProfileRepository.items.size != 2) {
-            println("----------------------- PROFILES ADD -----------------------")
-            ProfileRepository.add(
-                ProfileData(
-                    "",
-                    "https://api.laozhang.ai/v1"
-                ),
-            )
-            ProfileRepository.add(
-                ProfileData(
-                    "",
-                    "https://openrouter.ai/api/v1"
-                ),
-            )
-        }
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)

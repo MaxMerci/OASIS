@@ -16,7 +16,6 @@ data class Request(
     @SerialName("include_reasoning") var includeReasoning: Boolean = false,
     val tools: List<Tool>? = null,
     @SerialName("tool_choice") val toolChoice: String? = null,
-    @SerialName("extra") val extra: JsonObject? = null
 ) {
     @Serializable
     data class Tool(

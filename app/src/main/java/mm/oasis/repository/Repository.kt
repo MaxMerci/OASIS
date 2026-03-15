@@ -1,8 +1,12 @@
 package mm.oasis.repository
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
@@ -12,6 +16,7 @@ abstract class Repository<T>(
     private val name: String,
     private val itemSerializer: KSerializer<T>
 ) {
+    private val repositoryScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val storage = Storage(name)
     private val listSerializer = ListSerializer(itemSerializer)
 
@@ -30,6 +35,14 @@ abstract class Repository<T>(
         val newItems = items + value
         val newIndex = newItems.size - 1
         updateState(newItems, newIndex)
+    }
+
+    fun addAt(index: Int, value: T, saveToStorage: Boolean = true) {
+        val validatedIndex = index.coerceIn(0, items.size)
+        val newItems = items.toMutableList().apply {
+            add(validatedIndex, value)
+        }
+        updateState(newItems, validatedIndex, saveToStorage)
     }
 
     fun remove(value: T) {
@@ -60,14 +73,19 @@ abstract class Repository<T>(
         updateState(newItems, currentIndex)
     }
 
-    private fun updateState(newItems: List<T>, newIndex: Int) {
-        _state.value = RepositoryState(newItems, newIndex)
-        save(newItems, newIndex)
+    protected fun updateState(newItems: List<T>, newIndex: Int, saveToStorage: Boolean = true) {
+        val nextVersion = _state.value.version + 1
+        _state.value = RepositoryState(newItems, newIndex, nextVersion)
+        if (saveToStorage) {
+            save(newItems, newIndex)
+        }
     }
 
-    private fun save(itemsToSave: List<T>, indexToSave: Int) {
-        storage.put(name, itemsToSave, listSerializer)
-        storage.put("current_index", indexToSave, Int.serializer())
-        storage.flush()
+    fun save(itemsToSave: List<T>, indexToSave: Int) {
+        repositoryScope.launch(Dispatchers.IO) {
+            storage.put(name, itemsToSave, listSerializer)
+            storage.put("current_index", indexToSave, Int.serializer())
+            storage.flush()
+        }
     }
 }

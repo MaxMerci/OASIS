@@ -1,5 +1,6 @@
 package mm.oasis.serialization.dto
 
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -10,13 +11,15 @@ data class LLMResponse(
 @Serializable
 data class LLMRaw(
     val id: String,
-    val avatar: String? = null,
+    var name: String? = null,
+    var avatarUrl: String? = null,
     val pricing: Pricing? = null,
-    val ownedBy: String? = null,
+    @SerialName("owned_by") var ownedBy: String? = null,
+    val tokenizer: String? = null
 )
 
 @Serializable
 data class Pricing(
-    val input: Double? = null,
-    val output: Double? = null
+    val prompt: Double? = null,
+    val completion: Double? = null,
 )
