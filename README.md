@@ -11,6 +11,8 @@
 An open source mobile application for Android 16, an interface for the LLM neural network API, with an OpenAI structure that accepts only your personal token and the endpoint you need.
 ```
 
+If you are not aware: almost all modern LLM APIs inherit the same structure created by OpenAI, even Google AI and X AI, this application can work for all of them.
+
 > **how does it work?** > **You add your API key and the endpoint of the same API.** > **Select a model from the list of this API provided from the right.** > **Done! Communicate with the desired model, but remember, any whim for your API key and your money directly.** > **The app just uses all your settings and gives you responses from API.**
 
 ### functional
@@ -34,6 +36,9 @@ An open source mobile application for Android 16, an interface for the LLM neura
 ```
 Мобильное приложение с открытым исходным кодом для Android 16, интерфейс для LLM API, со структурой OpenAI, которое принимает только ваш личный токен и нужный вам эндпоинт.
 ```
+
+Если вы не в курсе: практически все современные API LLM наследуют одну структуру созданную `OpenAI`, даже `Google AI` и `X AI`,  данное приложение может работать для них всех.
+
 > **Как это работает?** > **Вы добавляете свой API-ключ и конечную точку того же API.** > **Выберите модель из списка этого API, представленного справа.** > **Готово! Общайтесь с желаемой моделью, но помните, любой каприз за ваш API-ключ и ваши деньги непосредственно** > **Приложение просто использует все ваши настройки и выдает ответы от API.**
 
 ## Функционал
