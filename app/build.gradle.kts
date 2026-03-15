@@ -27,42 +27,49 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+
     buildFeatures {
         compose = true
     }
 }
 
 dependencies {
+    // Platform
     implementation(platform(libs.compose.bom))
 
-    implementation(libs.glide)
-
+    // AndroidX
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.runtime)
+    implementation(libs.androidx.swiperefreshlayout)
+    implementation(libs.androidx.security.crypto)
+
+    // UI & Compose
+    implementation(libs.androidx.ui)
+    implementation(libs.material)
+    implementation(libs.com.tbuonomo)
+    implementation(libs.glide)
     debugImplementation(libs.androidx.ui.tooling)
 
-    implementation(libs.com.tbuonomo)
-    implementation(libs.androidx.ui)
-
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.swiperefreshlayout)
-    implementation(libs.material)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-
+    // Ktor
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
 
+    // Kotlinx
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
 
-    implementation(libs.androidx.security.crypto)
+    // Testing
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
 }

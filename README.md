@@ -31,6 +31,12 @@ If you are not aware: almost all modern LLM APIs inherit the same structure crea
 - **editing messages**: I haven't done it yet.
 - **web search**: I haven't done it yet.
 
+### ABOUT IT
+
+Once I looked at the LLMs that my friends use and I felt sad :(, then I decided that I would make them an application in which advanced LLMs would be available to them without VPN through mirrors, because deepseek is not the case, and development began.
+I made it as a remake of my older project `AllAI'. In general, I did it just for nothing to do, anything except study ^^
+I really love Rain World (© Videocult) and I decided that I want to make a mascot for the app icon inspired by slugcat.
+
 ## RU
 
 ```
@@ -56,3 +62,9 @@ If you are not aware: almost all modern LLM APIs inherit the same structure crea
 - **markdown**: Пока не поддерживается.
 - **редактирование сообщений**: Еще не сделал.
 - **поиск в интернете**: Еще не сделал.
+
+### О ПРОЕКТЕ
+
+Как то раз я посмотрел на LLM которыми пользуются мои друзья и мне стало грустно :(, тогда я решил что сделаю им приложение, в котором им будут доступны передовые LLM без VPN через зеркала, ибо дипсик это не дело, так и началась разработка.
+Я делал его как ремейк более старого моего проекта `AllAI`. В целом его я делал просто от нечего делать, все что угодно кроме учебы ^^
+Я очень люблю Rain World (© Videocult) и я решил, что я хочу сделать маскота на иконку приложения вдохновленную слизнекотом.

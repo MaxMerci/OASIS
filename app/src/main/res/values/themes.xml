@@ -2,10 +2,14 @@
 <resources>
     <style name="Theme.OASIS" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- background & Text -->
-        <item name="android:windowBackground">#161616</item>
+        <item name="android:windowBackground">@color/bg</item>
         <item name="android:textColorPrimary">#FFFFFF</item>
         <item name="colorControlNormal">@color/hint</item>
         <item name="android:textColor">@color/text</item>
+
+        <item name="windowSplashScreenBackground">@color/bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="postSplashScreenTheme">@style/Theme.OASIS</item>
 
         <!-- font -->
         <item name="fontFamily">@font/jetbrains_mono_nl_regular</item>
