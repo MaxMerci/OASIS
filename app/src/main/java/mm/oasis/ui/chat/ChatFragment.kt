@@ -32,13 +32,14 @@ class ChatFragment : Fragment() {
 
     private lateinit var input: RequestView
     private val messagesAdapter = MessagesAdapter()
-    private lateinit var recyclerView: RecyclerView
+    private lateinit var messagesList: RecyclerView
     private lateinit var emptyView: TextView
 
     private val pickFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { handleFileUri(it) }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -50,33 +51,30 @@ class ChatFragment : Fragment() {
         input = view.findViewById(R.id.requestView)
         emptyView = view.findViewById(R.id.emptyView)
 
-        recyclerView = view.findViewById(R.id.messagesList)
-        recyclerView.adapter = messagesAdapter
+        messagesList = view.findViewById(R.id.messagesList)
+        messagesList.adapter = messagesAdapter
 
-        input.onSend = ::sendMessage
+        input.onSend = { r -> requireActivity().runOnUiThread { sendMessage(r) } }
         input.onAddAttachment = {
             pickFileLauncher.launch("*/*")
         }
 
         lifecycleScope.launch {
-            ChatRepository.state.collectLatest { state ->
-                val currentChat = state.items.getOrNull(state.currentIndex)
-                val messages = currentChat?.messages ?: emptyList()
-                
-                messagesAdapter.submitList(messages.toList())
-                
-                if (messages.isEmpty()) {
-                    emptyView.visibility = View.VISIBLE
-                    recyclerView.visibility = View.GONE
-                } else {
-                    emptyView.visibility = View.GONE
-                    recyclerView.visibility = View.VISIBLE
-                    recyclerView.scrollToPosition(messages.size - 1)
+            ChatRepository.state.collectLatest {
+                requireActivity().runOnUiThread { 
+                    messagesAdapter.notifyDataSetChanged()
+                    updateEmptyViewVisibility()
                 }
             }
         }
 
         return view
+    }
+
+    private fun updateEmptyViewVisibility() {
+        val isEmpty = messagesAdapter.itemCount == 0
+        emptyView.visibility = if (isEmpty) View.VISIBLE else View.GONE
+        messagesList.visibility = if (isEmpty) View.GONE else View.VISIBLE
     }
 
     private fun handleFileUri(uri: Uri) {
@@ -130,6 +128,14 @@ class ChatFragment : Fragment() {
         return name
     }
 
+    fun updateMessages() {
+        requireActivity().runOnUiThread {
+            messagesAdapter.notifyDataSetChanged()
+            updateEmptyViewVisibility()
+            messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
+        }
+    }
+
     @SuppressLint("NotifyDataSetChanged")
     private fun sendMessage(request: Request) {
         if (ApiClient.generating) {
@@ -140,26 +146,14 @@ class ChatFragment : Fragment() {
 
         val cProfile = ProfileRepository.currentProfile == null
         val cModel = ProfileRepository.currentProfile?.model == null
+
         if (cModel || cProfile) {
-            val systemMessage = if (cProfile)
-                Message(
-                    role = Message.MessageRole.SYSTEM,
-                    content = MessageContent.Parts(
-                        listOf(ContentPart.TextPart("PROFILE NOT SELECTED"))
-                    )
-                )
-            else
-                Message(
-                    role = Message.MessageRole.SYSTEM,
-                    content = MessageContent.Parts(
-                        listOf(ContentPart.TextPart("MODEL NOT SELECTED"))
-                    )
-                )
-            // это сообщение не должно сохранится
-            // мы добавляем его, обновляем датасет и удаляем, оно будет видно пока он не обновится в другом месте
-            ChatRepository.currentChat.messages.add(systemMessage)
-            messagesAdapter.submitList(ChatRepository.currentChat.messages.toList())
-            ChatRepository.currentChat.messages.remove(systemMessage)
+            val errorText = if (cProfile) "PROFILE NOT SELECTED" else "MODEL NOT SELECTED"
+            com.google.android.material.snackbar.Snackbar.make(
+                requireView(),
+                errorText,
+                com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
+            ).show()
             return
         }
 
@@ -169,53 +163,50 @@ class ChatFragment : Fragment() {
 
         ChatRepository.updateItem(ChatRepository.currentIndex) { it }
 
+        updateMessages()
+
         lifecycleScope.launch {
-            var messageAdded = false
             input.setGenerating(true)
+
+            currentChat.messages += listOf(
+                Message(
+                    avatarUrl = ProfileRepository.currentProfile?.model?.avatarUrl,
+                    role = Message.MessageRole.ASSISTANT,
+                    content = MessageContent.Parts(
+                        listOf(ContentPart.TextPart(""))
+                    ),
+                    reasoning = "",
+                    name = request.model,
+                )
+            )
+            updateMessages()
 
             try {
                 ApiClient.generateTextStream(request).collect { chunk ->
                     val contentDelta = chunk.choices.getOrNull(0)?.delta?.content ?: ""
                     val reasoningDelta = chunk.choices.getOrNull(0)?.delta?.reasoning ?: ""
-                    
-                    if (!messageAdded) {
-                        currentChat.messages.add(
-                            Message(
-                                avatarUrl = ProfileRepository.currentProfile?.model?.avatarUrl,
-                                role = Message.MessageRole.ASSISTANT,
-                                content = MessageContent.Parts(
-                                    listOf(ContentPart.TextPart(contentDelta))
-                                ),
-                                reasoning = reasoningDelta,
-                                name = request.model,
-                            )
-                        )
-                        messageAdded = true
-                    } else {
-                        val message = currentChat.messages.last()
-                        val currentContent = message.content
-                        if (currentContent is MessageContent.Parts) {
-                            val updatedParts = currentContent.parts.map { part ->
-                                if (part is ContentPart.TextPart) {
-                                    part.copy(text = part.text + contentDelta)
-                                } else {
-                                    part
-                                }
-                            }
-                            message.content = MessageContent.Parts(updatedParts)
-                        }
-                        message.reasoning = (message.reasoning ?: "") + reasoningDelta
-                    }
 
-                    messagesAdapter.submitList(currentChat.messages.toList())
-                    recyclerView.scrollToPosition(messagesAdapter.itemCount - 1)
+                    val message = currentChat.messages.last()
+                    val currentContent = message.content
+                    if (currentContent is MessageContent.Parts) {
+                        val updatedParts = currentContent.parts.map { part ->
+                            if (part is ContentPart.TextPart) {
+                                part.copy(text = part.text + contentDelta)
+                            } else {
+                                part
+                            }
+                        }
+                        message.content = MessageContent.Parts(updatedParts)
+                    }
+                    message.reasoning = (message.reasoning ?: "") + reasoningDelta
+
+                    requireActivity().runOnUiThread { messagesAdapter.notifyDataSetChanged() }
                 }
-                ChatRepository.save(ChatRepository.items, ChatRepository.currentIndex)
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
                 input.setGenerating(false)
-                ChatRepository.updateItem(ChatRepository.currentIndex) { it }
+                ChatRepository.save()
             }
         }
     }

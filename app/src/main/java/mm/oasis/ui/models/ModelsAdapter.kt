@@ -4,63 +4,59 @@ import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.BaseAdapter
 import android.widget.TextView
-import androidx.recyclerview.widget.RecyclerView
 import mm.oasis.R
-import mm.oasis.serialization.dto.LLMRaw
 import mm.oasis.serialization.dto.LLMResponse
 
-class ModelsAdapter(private val onClick: (LLMRaw) -> Unit) : RecyclerView.Adapter<ModelsAdapter.ViewHolder>() {
-    private var allModels: List<LLMRaw> = emptyList()
-    private var viewModels: List<LLMRaw> = emptyList()
+class ModelsAdapter : BaseAdapter() {
+    var allModels: LLMResponse? = null
+    var viewModels: LLMResponse? = null
+
+    override fun getCount() = viewModels?.data?.size ?: 0
+    override fun getItem(position: Int) = viewModels?.data[position]
+    override fun getItemId(position: Int) = position.toLong()
 
     @SuppressLint("NotifyDataSetChanged")
     fun setModels(newModels: LLMResponse) {
-        allModels = newModels.data
-        viewModels = newModels.data
+        println(newModels)
+        allModels = newModels
+        viewModels = newModels
         notifyDataSetChanged()
     }
-
-    fun getItem(position: Int) = viewModels[position]
 
     @SuppressLint("NotifyDataSetChanged")
     fun filter(query: String) {
         val lowerQuery = query.lowercase().trim()
-        viewModels = if (lowerQuery.isEmpty()) {
-            allModels
+        if (lowerQuery.isEmpty()) {
+            viewModels = allModels
         } else {
-            allModels.filter { item ->
+            val filteredList = allModels?.data?.filter { item ->
                 lowerQuery in item.id.lowercase() ||
+                        lowerQuery in (item.id.lowercase()) ||
                         lowerQuery in (item.ownedBy?.lowercase() ?: "")
-            }
+            } ?: emptyList()
+
+            viewModels = allModels?.copy(data = filteredList)
         }
         notifyDataSetChanged()
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_model, parent, false)
-        return ViewHolder(view)
-    }
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+        val view = convertView ?: LayoutInflater.from(parent?.context).inflate(R.layout.item_model, parent, false)
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val model = viewModels[position]
-        holder.bind(model)
-        holder.itemView.setOnClickListener { onClick(model) }
-    }
+        val model = viewModels!!.data[position]
 
-    override fun getItemCount() = viewModels.size
+        val modelId: TextView = view.findViewById(R.id.modelId)
+        val modelProvider: TextView = view.findViewById(R.id.modelProvider)
+        val modelPricing: TextView = view.findViewById(R.id.modelPricing)
 
-    class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        private val modelId: TextView = view.findViewById(R.id.modelId)
-        private val modelProvider: TextView = view.findViewById(R.id.modelProvider)
-        private val modelPricing: TextView = view.findViewById(R.id.modelPricing)
+        modelId.text = model.name
+        modelProvider.text = if (model.ownedBy != null) "by ${model.ownedBy}" else "PROVIDER NOT SPECIFIED"
+        modelPricing.text = if (model.pricing?.prompt != null && model.pricing.completion != null) {
+            "PROMPT: $${model.pricing.prompt}/M | COMPLETION: $${model.pricing.completion}/M"
+        } else "PRICE NOT SPECIFIED"
 
-        fun bind(model: LLMRaw) {
-            modelId.text = model.id
-            modelProvider.text = if (model.ownedBy != null) "by ${model.ownedBy}" else "PROVIDER NOT SPECIFIED"
-            modelPricing.text = if (model.pricing?.prompt != null && model.pricing.completion != null) {
-                "PROMPT: $${model.pricing.prompt}/M | COMPLETION: $${model.pricing.completion}/M"
-            } else "PRICE NOT SPECIFIED"
-        }
+        return view
     }
 }

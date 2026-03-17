@@ -16,12 +16,15 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
+import mm.oasis.serialization.dto.ChatCompletionResponse
+import mm.oasis.serialization.dto.Message
 import okhttp3.Protocol
 import java.util.concurrent.TimeUnit
 
 private val json = kotlinx.serialization.json.Json {
     ignoreUnknownKeys = true
     encodeDefaults = true
+    explicitNulls = false
 }
 
 object ApiClient{
@@ -55,6 +58,8 @@ object ApiClient{
         generating = true
         generationJob = coroutineContext[Job]
 
+        println(request)
+
         try {
             client.preparePost("${ProfileRepository.currentProfile!!.endPoint.trimEnd('/')}/chat/completions") {
                 setBody(request.copy(stream = true))
@@ -74,6 +79,15 @@ object ApiClient{
                     }
                 }
             }
+        } catch (e: Exception) {
+            val chunk = ChatCompletionChunk(
+                "", listOf(
+                    ChatCompletionChunk.ChunkChoice(
+                        0, ChatCompletionChunk.Delta(content = e.message)
+                    )
+                )
+            )
+            send(chunk)
         } finally {
             generating = false
             generationJob = null
@@ -118,7 +132,9 @@ object ApiClient{
                 if (l.tokenizer != null) l.ownedBy = l.tokenizer
                 else l.ownedBy = l.id.split("/")[0]
             }
-            if (l.name == null) {
+            if (l.name == null && l.displayName != null) {
+                l.name = l.displayName
+            } else if (l.name == null) {
                 l.name = l.id
             }
             if (l.avatarUrl == null) {

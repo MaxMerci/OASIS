@@ -11,7 +11,6 @@ import mm.oasis.repository.ChatRepository
 class ChatsAdapter(
     private val onItemClick: (Int) -> Unit
 ) : RecyclerView.Adapter<ChatsAdapter.ChatViewHolder>() {
-
     override fun getItemCount() = ChatRepository.items.size
 
     override fun getItemViewType(position: Int): Int {

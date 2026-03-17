@@ -66,12 +66,12 @@ class DataFragment : Fragment() {
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val position = viewHolder.bindingAdapterPosition
                 if (position != RecyclerView.NO_POSITION) {
-                    ChatRepository.remove(position)
+                    ChatRepository.removeAt(position)
                 }
             }
 
             override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 0.5f
-            
+
             override fun isItemViewSwipeEnabled(): Boolean {
                 return !isPulling
             }
@@ -161,7 +161,7 @@ class DataFragment : Fragment() {
         ModalDialogBuilder(requireContext())
             .addField(DialogField("endPoint", "ENDPOINT", FieldType.URL, true, profile.endPoint.ifEmpty { "https://api.example.ai/v1" }))
             .addField(DialogField("apiKey", "API KEY", FieldType.TEXT, true, profile.apiKey.ifEmpty { "sk-..." }))
-            .addButton(DialogButton("DELETE") { ProfileRepository.remove(pos) })
+            .addButton(DialogButton("DELETE") { ProfileRepository.removeAt(pos) })
             .onOk { values ->
                 profile.endPoint = values["endPoint"] ?: profile.endPoint
                 profile.apiKey = values["apiKey"] ?: profile.apiKey

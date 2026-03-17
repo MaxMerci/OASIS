@@ -41,7 +41,6 @@ class RequestView @JvmOverloads constructor(
     private val includeReasoning: CheckBox
     private val temperature: EditText
     private val topP: EditText
-    private val maxTokens: EditText
     private val attachmentsList: RecyclerView
     private val attachmentsAdapter: AttachmentsAdapter
 
@@ -63,7 +62,6 @@ class RequestView @JvmOverloads constructor(
         includeReasoning = findViewById(R.id.includeReasoning)
         temperature = findViewById(R.id.temperature)
         topP = findViewById(R.id.topP)
-        maxTokens = findViewById(R.id.maxTokens)
         settingsContainer = findViewById(R.id.settingsContainer)
         attachmentsList = findViewById(R.id.attachmentsList)
 
@@ -92,15 +90,14 @@ class RequestView @JvmOverloads constructor(
             }
 
             val contentText = content.text.toString()
-            val maxTokensText = maxTokens.text.toString()
             val temperatureText = temperature.text.toString()
             val topPText = topP.text.toString()
             val attachments = attachmentsAdapter.getItems()
 
             if (contentText.isNotBlank() || attachments.isNotEmpty()) {
                 request.model = ProfileRepository.currentProfile?.model?.id ?: "MODEL NOT SELECTED"
-                request.includeReasoning = includeReasoning.isChecked
-                request.maxTokens = if (maxTokensText.isNotBlank()) maxTokensText.toInt() else null
+                request.includeReasoning = if (includeReasoning.isChecked) true else null // некоторые API могут ругаться на этот ключ, так что его лучше просто удалять
+                // однако, тогда API будет использовать значение по умолчанию и гибкость теряется, я не придумал что с этим делать, проблема возникает в Google/openai
                 request.temperature = if (temperatureText.isNotBlank()) temperatureText.toDouble() else 1.0
                 request.topP = if (topPText.isNotBlank()) topPText.toDouble() else null
 

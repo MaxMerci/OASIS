@@ -13,7 +13,8 @@
         android:padding="5dp"
         android:text="[CHAT_NAME@system]$"
         android:textColor="@color/hint"
-        android:textSize="12sp" />
+        android:textSize="12sp"
+        android:textIsSelectable="true" />
 
     <TextView
         android:id="@+id/content"
@@ -27,5 +28,6 @@
         android:paddingRight="12dp"
         android:textColor="#AAAAAA"
         android:textSize="14sp"
-        android:textAlignment="center" />
+        android:textAlignment="center"
+        android:textIsSelectable="true" />
 </LinearLayout>

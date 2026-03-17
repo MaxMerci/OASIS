@@ -40,14 +40,14 @@
 
     </LinearLayout>
 
-    <TextView
-        android:id="@+id/reasoning"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:padding="5dp"
-        android:text="REASONING"
-        android:textColor="@color/hint"
-        android:visibility="gone" />
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/reasoning_list"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:paddingLeft="5dp"
+        android:paddingRight="5dp"
+        android:visibility="gone"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
 
     <TextView
         android:id="@+id/content"
@@ -60,6 +60,7 @@
         android:paddingBottom="12dp"
         android:text="CONTENT"
         android:textColor="@color/text"
-        android:textSize="16sp" />
+        android:textSize="16sp"
+        android:textIsSelectable="true" />
 
 </LinearLayout>

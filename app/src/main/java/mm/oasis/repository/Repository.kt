@@ -30,11 +30,12 @@ abstract class Repository<T>(
 
     val items: List<T> get() = _state.value.items
     val currentIndex: Int get() = _state.value.currentIndex
+    val currentItem: T? get() = items.getOrNull(currentIndex)
 
-    fun add(value: T) {
+    fun add(value: T, saveToStorage: Boolean = true) {
         val newItems = items + value
         val newIndex = newItems.size - 1
-        updateState(newItems, newIndex)
+        updateState(newItems, newIndex, saveToStorage)
     }
 
     fun addAt(index: Int, value: T, saveToStorage: Boolean = true) {
@@ -45,46 +46,47 @@ abstract class Repository<T>(
         updateState(newItems, validatedIndex, saveToStorage)
     }
 
-    fun remove(value: T) {
+    fun remove(value: T, saveToStorage: Boolean = true) {
         val newItems = items.filter { it != value }
         val newIndex = if (newItems.isEmpty()) 0 else currentIndex.coerceIn(0, newItems.size - 1)
-        updateState(newItems, newIndex)
+        updateState(newItems, newIndex, saveToStorage)
     }
 
-    fun remove(i: Int) {
-        if (i !in items.indices) return
-        val newItems = items.toMutableList().apply { removeAt(i) }
+    fun removeAt(index: Int, saveToStorage: Boolean = true) {
+        if (index !in items.indices) return
+        val newItems = items.toMutableList().apply { removeAt(index) }
         val newIndex = if (newItems.isEmpty()) 0 else currentIndex.coerceIn(0, newItems.size - 1)
-        updateState(newItems, newIndex)
+        updateState(newItems, newIndex, saveToStorage)
     }
 
-    fun updateIndex(newIndex: Int) {
+    fun updateIndex(newIndex: Int, saveToStorage: Boolean = true) {
         if (items.isEmpty()) return
         val validated = newIndex.coerceIn(0, items.size - 1)
         if (currentIndex != validated) {
-            updateState(items, validated)
+            updateState(items, validated, saveToStorage)
         }
     }
 
-    fun updateItem(index: Int, update: (T) -> T) {
+    fun updateItem(index: Int, saveToStorage: Boolean = true, update: (T) -> T) {
         if (index !in items.indices) return
         val newItems = items.toMutableList()
         newItems[index] = update(newItems[index])
-        updateState(newItems, currentIndex)
+        updateState(newItems, currentIndex, saveToStorage)
     }
 
     protected fun updateState(newItems: List<T>, newIndex: Int, saveToStorage: Boolean = true) {
         val nextVersion = _state.value.version + 1
         _state.value = RepositoryState(newItems, newIndex, nextVersion)
         if (saveToStorage) {
-            save(newItems, newIndex)
+            save()
         }
     }
 
-    fun save(itemsToSave: List<T>, indexToSave: Int) {
+    fun save() {
+        val stateToSave = _state.value
         repositoryScope.launch(Dispatchers.IO) {
-            storage.put(name, itemsToSave, listSerializer)
-            storage.put("current_index", indexToSave, Int.serializer())
+            storage.put(name, stateToSave.items, listSerializer)
+            storage.put("current_index", stateToSave.currentIndex, Int.serializer())
             storage.flush()
         }
     }

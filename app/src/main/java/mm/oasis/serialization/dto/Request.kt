@@ -13,7 +13,7 @@ data class Request(
     var temperature: Double? = 1.0,
     @SerialName("top_p") var topP: Double? = null,
     @SerialName("max_tokens") var maxTokens: Int? = null,
-    @SerialName("include_reasoning") var includeReasoning: Boolean = false,
+    @SerialName("include_reasoning") var includeReasoning: Boolean? = null,
     val tools: List<Tool>? = null,
     @SerialName("tool_choice") val toolChoice: String? = null,
 ) {

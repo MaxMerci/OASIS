@@ -15,6 +15,7 @@ data class LLMRaw(
     var avatarUrl: String? = null,
     val pricing: Pricing? = null,
     @SerialName("owned_by") var ownedBy: String? = null,
+    @SerialName("display_name") val displayName: String? = null,
     val tokenizer: String? = null
 )
 

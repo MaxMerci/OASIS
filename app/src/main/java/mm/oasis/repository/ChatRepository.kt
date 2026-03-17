@@ -3,9 +3,10 @@ package mm.oasis.repository
 import mm.oasis.serialization.storage.ChatData
 
 object ChatRepository : Repository<ChatData>("chats", ChatData.serializer()) {
+
     val currentChat: ChatData
         get() {
-            var c = items.getOrNull(currentIndex)
+            var c = currentItem
             if (c == null) {
                 addAt(0, emptyChat(), saveToStorage = false)
                 c = items.first()
@@ -14,6 +15,7 @@ object ChatRepository : Repository<ChatData>("chats", ChatData.serializer()) {
         }
 
     init {
+        // добавляем пустой чат, не сохраняя его
         val currentItems = items
         if (currentItems.isEmpty()) {
             updateState(listOf(emptyChat()), 0, saveToStorage = false)
@@ -22,14 +24,9 @@ object ChatRepository : Repository<ChatData>("chats", ChatData.serializer()) {
             if (firstChat.messages.isNotEmpty()) {
                 updateState(listOf(emptyChat()) + currentItems, 0, saveToStorage = false)
             } else {
-                updateIndexInMemory(0)
+                updateIndex(0, saveToStorage = false)
             }
         }
-    }
-
-    private fun updateIndexInMemory(newIndex: Int) {
-        val validated = newIndex.coerceIn(0, items.size - 1)
-        updateState(items, validated, saveToStorage = false)
     }
 
     fun emptyChat(): ChatData {

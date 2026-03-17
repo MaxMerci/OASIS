@@ -8,12 +8,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.View.*
 import android.view.ViewGroup
+import android.widget.AdapterView
 import android.widget.EditText
+import android.widget.ListView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import mm.oasis.R
 import mm.oasis.remote.ApiClient
@@ -26,7 +26,7 @@ import mm.oasis.serialization.storage.ProfileData
 
 
 class ModelsFragment : Fragment() {
-    private lateinit var modelsView: RecyclerView
+    private lateinit var modelsList: ListView
     private lateinit var emptyView: TextView
     private lateinit var searchInput: EditText
     private lateinit var reload: SwipeRefreshLayout
@@ -35,17 +35,9 @@ class ModelsFragment : Fragment() {
     private lateinit var currentModelProvider: TextView
     private lateinit var currentModelPricing: TextView
 
-    private val modelsAdapter = ModelsAdapter { model ->
-        setCurrent(model)
-    }
+    private val modelsAdapter = ModelsAdapter()
 
     private var lastProfilesState: RepositoryState<ProfileData>? = null
-
-    private val adapterObserver = object : RecyclerView.AdapterDataObserver() {
-        override fun onChanged() {
-            updateEmptyView()
-        }
-    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -63,27 +55,34 @@ class ModelsFragment : Fragment() {
         currentModelPricing = view.findViewById(R.id.currentModelPricing)
         reload = view.findViewById(R.id.reload)
 
-        modelsView = view.findViewById(R.id.modelsView)
-        modelsView.layoutManager = LinearLayoutManager(requireContext())
-        modelsView.adapter = modelsAdapter
-
-        modelsAdapter.registerAdapterDataObserver(adapterObserver)
+        modelsList = view.findViewById(R.id.modelsView)
+        modelsList.adapter = modelsAdapter
+        modelsList.emptyView = emptyView
 
         lifecycleScope.launch {
             ProfileRepository.state.collect { state ->
-                val currentProfile = ProfileRepository.currentProfile
-                val lastProfile = lastProfilesState?.items?.getOrNull(lastProfilesState?.currentIndex ?: 0)
+                requireActivity().runOnUiThread {
+                    val currentProfile = ProfileRepository.currentProfile
+                    val lastProfile =
+                        lastProfilesState?.items?.getOrNull(lastProfilesState?.currentIndex ?: 0)
 
-                val apiKeyChanged = lastProfile?.apiKey != currentProfile?.apiKey
-                val endPointChanged = lastProfile?.endPoint != currentProfile?.endPoint
+                    val apiKeyChanged = lastProfile?.apiKey != currentProfile?.apiKey
+                    val endPointChanged = lastProfile?.endPoint != currentProfile?.endPoint
 
-                if (apiKeyChanged || endPointChanged) {
-                    setCurrent(null)
-                    loadModels()
-                    setCurrent(ProfileRepository.currentProfile?.model)
+                    if (apiKeyChanged || endPointChanged) {
+                        setCurrent(null)
+                        loadModels()
+                        setCurrent(ProfileRepository.currentProfile?.model)
+                    }
+
+                    lastProfilesState = state
                 }
+            }
+        }
 
-                lastProfilesState = state
+        modelsList.onItemClickListener = AdapterView.OnItemClickListener { parent, view, position, id ->
+            requireActivity().runOnUiThread {
+                setCurrent(modelsAdapter.getItem(position))
             }
         }
 
@@ -106,21 +105,6 @@ class ModelsFragment : Fragment() {
         setCurrent(ProfileRepository.currentProfile?.model)
     }
 
-    override fun onDestroyView() {
-        super.onDestroyView()
-        modelsAdapter.unregisterAdapterDataObserver(adapterObserver)
-    }
-
-    private fun updateEmptyView() {
-        val isEmpty = modelsAdapter.itemCount == 0
-        emptyView.visibility = if (isEmpty) VISIBLE else GONE
-        modelsView.visibility = if (isEmpty) GONE else VISIBLE
-
-        if (isEmpty && searchInput.text.isNotEmpty()) {
-            emptyView.text = "NOTHING FOUND FOR \"${searchInput.text}\""
-        }
-    }
-
     fun loadModels() {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
@@ -130,7 +114,7 @@ class ModelsFragment : Fragment() {
             } catch (e: Exception) {
                 emptyView.text = e.toString()
                 emptyView.visibility = VISIBLE
-                modelsView.visibility = GONE
+                modelsList.visibility = GONE
             }
         }
     }
