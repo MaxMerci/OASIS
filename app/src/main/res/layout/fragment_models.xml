@@ -64,31 +64,6 @@
             app:layout_constraintTop_toBottomOf="@id/headerLabel"
             app:layout_constraintStart_toStartOf="parent" />
 
-        <TextView
-            android:id="@+id/currentModelProvider"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center"
-            android:text="PROVIDER"
-            android:textColor="@color/hint"
-            android:textSize="12sp"
-            app:layout_constraintEnd_toStartOf="@+id/currentModelPricing"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/currentModelId" />
-
-        <TextView
-            android:id="@+id/currentModelPricing"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="PRICING"
-            android:textColor="@color/hint"
-            android:textSize="12sp"
-            app:layout_constraintBaseline_toBaselineOf="@id/currentModelProvider"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="@id/currentModelProvider" />
-
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <FrameLayout
@@ -107,7 +82,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
-            <ListView
+            <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/modelsView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"

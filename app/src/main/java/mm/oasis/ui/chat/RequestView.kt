@@ -8,10 +8,10 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import mm.oasis.R
 import mm.oasis.repository.ProfileRepository
@@ -38,9 +38,14 @@ class RequestView @JvmOverloads constructor(
     private val settingsContainer: View
     private val send: ImageButton
     private val addAttachment: ImageButton
-    private val includeReasoning: CheckBox
+    
+    private val reasoningYes: TextView
+    private val reasoningAuto: TextView
+    private val reasoningNo: TextView
+    private var reasoningState: Boolean? = null // null = AUTO, true = YES, false = NO
+
     private val temperature: EditText
-    private val topP: EditText
+    private val maxTokens: EditText
     private val attachmentsList: RecyclerView
     private val attachmentsAdapter: AttachmentsAdapter
 
@@ -59,9 +64,13 @@ class RequestView @JvmOverloads constructor(
         content = findViewById(R.id.contentInput)
         send = findViewById(R.id.sendButton)
         addAttachment = findViewById(R.id.addAttachment)
-        includeReasoning = findViewById(R.id.includeReasoning)
+        
+        reasoningYes = findViewById(R.id.reasoningYes)
+        reasoningAuto = findViewById(R.id.reasoningAuto)
+        reasoningNo = findViewById(R.id.reasoningNo)
+        
         temperature = findViewById(R.id.temperature)
-        topP = findViewById(R.id.topP)
+        maxTokens = findViewById(R.id.maxTokens)
         settingsContainer = findViewById(R.id.settingsContainer)
         attachmentsList = findViewById(R.id.attachmentsList)
 
@@ -83,6 +92,10 @@ class RequestView @JvmOverloads constructor(
             onAddAttachment?.invoke()
         }
 
+        reasoningYes.setOnClickListener { updateReasoningState(true) }
+        reasoningAuto.setOnClickListener { updateReasoningState(null) }
+        reasoningNo.setOnClickListener { updateReasoningState(false) }
+
         send.setOnClickListener {
             if (isGenerating) {
                 onSend?.invoke(Request())
@@ -90,15 +103,14 @@ class RequestView @JvmOverloads constructor(
             }
 
             val contentText = content.text.toString()
-            val temperatureText = temperature.text.toString()
-            val topPText = topP.text.toString()
+            val maxTokentText = temperature.text.toString()
+            val topPText = maxTokens.text.toString()
             val attachments = attachmentsAdapter.getItems()
 
             if (contentText.isNotBlank() || attachments.isNotEmpty()) {
                 request.model = ProfileRepository.currentProfile?.model?.id ?: "MODEL NOT SELECTED"
-                request.includeReasoning = if (includeReasoning.isChecked) true else null // некоторые API могут ругаться на этот ключ, так что его лучше просто удалять
-                // однако, тогда API будет использовать значение по умолчанию и гибкость теряется, я не придумал что с этим делать, проблема возникает в Google/openai
-                request.temperature = if (temperatureText.isNotBlank()) temperatureText.toDouble() else 1.0
+                request.includeReasoning = reasoningState
+                request.maxTokens = if (maxTokentText.isNotBlank()) maxTokentText.toInt() else null
                 request.topP = if (topPText.isNotBlank()) topPText.toDouble() else null
 
                 val parts = mutableListOf<ContentPart>()
@@ -119,6 +131,13 @@ class RequestView @JvmOverloads constructor(
                 clear()
             }
         }
+    }
+
+    private fun updateReasoningState(state: Boolean?) {
+        reasoningState = state
+        reasoningYes.setBackgroundResource(if (state == true) R.drawable.ic_bg_g else R.drawable.ic_bg_b)
+        reasoningAuto.setBackgroundResource(if (state == null) R.drawable.ic_bg_g else R.drawable.ic_bg_b)
+        reasoningNo.setBackgroundResource(if (state == false) R.drawable.ic_bg_g else R.drawable.ic_bg_b)
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {

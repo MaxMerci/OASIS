@@ -1,7 +1,9 @@
 package mm.oasis.serialization.dto
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonNames
 
 @Serializable
 data class ChatCompletionChunk(
@@ -15,11 +17,13 @@ data class ChatCompletionChunk(
         @SerialName("finish_reason") val finishReason: String? = null
     )
 
+
+    @OptIn(ExperimentalSerializationApi::class)
     @Serializable
     data class Delta(
         val role: String? = null,
         val content: String? = null,
-        val reasoning: String? = null,
+        @JsonNames("reasoning_content", "reasoning") val reasoning: String? = null,
         @SerialName("tool_calls") val toolCalls: List<ToolCallChunk>? = null
     )
 }

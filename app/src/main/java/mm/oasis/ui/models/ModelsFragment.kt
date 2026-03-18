@@ -8,12 +8,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.View.*
 import android.view.ViewGroup
-import android.widget.AdapterView
 import android.widget.EditText
-import android.widget.ListView
 import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import mm.oasis.R
 import mm.oasis.remote.ApiClient
@@ -26,16 +26,18 @@ import mm.oasis.serialization.storage.ProfileData
 
 
 class ModelsFragment : Fragment() {
-    private lateinit var modelsList: ListView
+    private lateinit var modelsList: RecyclerView
     private lateinit var emptyView: TextView
     private lateinit var searchInput: EditText
     private lateinit var reload: SwipeRefreshLayout
 
     private lateinit var currentModelId: TextView
-    private lateinit var currentModelProvider: TextView
-    private lateinit var currentModelPricing: TextView
 
-    private val modelsAdapter = ModelsAdapter()
+    private val modelsAdapter = ModelsAdapter { model ->
+        requireActivity().runOnUiThread {
+            setCurrent(model)
+        }
+    }
 
     private var lastProfilesState: RepositoryState<ProfileData>? = null
 
@@ -50,14 +52,15 @@ class ModelsFragment : Fragment() {
 
         emptyView = view.findViewById(R.id.emptyView)
         searchInput = view.findViewById(R.id.searchInput)
-        currentModelId = view.findViewById(R.id.currentModelId)
-        currentModelProvider = view.findViewById(R.id.currentModelProvider)
-        currentModelPricing = view.findViewById(R.id.currentModelPricing)
         reload = view.findViewById(R.id.reload)
 
+        currentModelId = view.findViewById(R.id.currentModelId)
+
         modelsList = view.findViewById(R.id.modelsView)
+        modelsList.layoutManager = LinearLayoutManager(requireContext())
         modelsList.adapter = modelsAdapter
-        modelsList.emptyView = emptyView
+
+        modelsList.itemAnimator = null
 
         lifecycleScope.launch {
             ProfileRepository.state.collect { state ->
@@ -77,12 +80,6 @@ class ModelsFragment : Fragment() {
 
                     lastProfilesState = state
                 }
-            }
-        }
-
-        modelsList.onItemClickListener = AdapterView.OnItemClickListener { parent, view, position, id ->
-            requireActivity().runOnUiThread {
-                setCurrent(modelsAdapter.getItem(position))
             }
         }
 
@@ -111,6 +108,7 @@ class ModelsFragment : Fragment() {
                 modelsAdapter.setModels(LLMResponse(emptyList()))
                 val models = ApiClient.fetchModels()
                 modelsAdapter.setModels(models)
+                emptyView.visibility = if (models.data.isEmpty()) VISIBLE else GONE
             } catch (e: Exception) {
                 emptyView.text = e.toString()
                 emptyView.visibility = VISIBLE
@@ -126,16 +124,8 @@ class ModelsFragment : Fragment() {
                 currentProfile.copy(model = model)
             }
             currentModelId.text = model.id
-            currentModelProvider.visibility = VISIBLE
-            currentModelProvider.text = model.ownedBy ?: "PROVIDER NOT SPECIFIED"
-            currentModelPricing.visibility = VISIBLE
-            currentModelPricing.text = if (model.pricing?.prompt != null && model.pricing.completion != null) {
-                "PROMPT: $${model.pricing.prompt}/M | COMPLETION: $${model.pricing.completion}/M"
-            } else "PRICE NOT SPECIFIED"
         } else {
             currentModelId.text = "NOT SELECTED"
-            currentModelProvider.visibility = GONE
-            currentModelPricing.visibility = GONE
         }
     }
 }

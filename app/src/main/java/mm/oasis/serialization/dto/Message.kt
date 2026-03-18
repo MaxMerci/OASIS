@@ -1,8 +1,8 @@
 package mm.oasis.serialization.dto
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 
 @Serializable
 data class Message(

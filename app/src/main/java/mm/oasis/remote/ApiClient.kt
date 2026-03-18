@@ -70,6 +70,8 @@ object ApiClient{
                 while (!channel.isClosedForRead) {
                     val line = channel.readUTF8Line() ?: break
 
+                    println(line)
+
                     if (line.startsWith("data: ")) {
                         val data = line.removePrefix("data: ").trim()
                         if (data == "[DONE]") return@execute
@@ -127,22 +129,13 @@ object ApiClient{
 
         val r = response.body<LLMResponse>()
 
-        for (l in r.data) {
-            if (l.ownedBy == null && l.id.contains("/")) {
-                if (l.tokenizer != null) l.ownedBy = l.tokenizer
-                else l.ownedBy = l.id.split("/")[0]
-            }
-            if (l.name == null && l.displayName != null) {
-                l.name = l.displayName
-            } else if (l.name == null) {
-                l.name = l.id
-            }
-            if (l.avatarUrl == null) {
-                for ((c, a) in avatars.entries) {
-                    if (l.id.contains(c)) l.avatarUrl = a
+        for (m in r.data) {
+            for ((k, u) in avatars.entries) {
+                if (m.id.contains(k)) {
+                    m.avatarUrl = u
                     break
                 }
-                if (l.avatarUrl == null) l.avatarUrl = defaultAvatar
+                m.avatarUrl = defaultAvatar
             }
         }
 
