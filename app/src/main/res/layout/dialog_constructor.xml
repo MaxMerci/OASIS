@@ -5,6 +5,15 @@
     android:layout_height="wrap_content"
     android:background="@drawable/ic_bg_b">
 
+    <TextView
+        android:id="@+id/dialogTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="6dp"
+        android:text="NAME"
+        android:textColor="@color/text"
+        android:textSize="16sp" />
+
     <LinearLayout
         android:id="@+id/fieldsContainer"
         android:orientation="vertical"

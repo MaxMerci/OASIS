@@ -13,11 +13,12 @@ import mm.oasis.ui.chat.ChatFragment
 import mm.oasis.ui.data.DataFragment
 import mm.oasis.ui.models.ModelsFragment
 import com.tbuonomo.viewpagerdotsindicator.WormDotsIndicator
-import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import mm.oasis.remote.UpdateManager
+import mm.oasis.ui.modal.DialogField
+import mm.oasis.ui.modal.FieldType
+import mm.oasis.ui.modal.ModalDialogBuilder
 
 class MainActivity : AppCompatActivity() {
     private lateinit var viewPager: ViewPager2
@@ -38,35 +39,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkForUpdates() {
-        val currentVersion = try {
-            packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0"
-        } catch (e: Exception) {
-            "1.0"
-        }
+        val currentVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: ""
 
         lifecycleScope.launch {
             val release = updateManager.checkForUpdates(currentVersion)
             if (release != null) {
                 val apkAsset = release.assets.find { it.name.endsWith(".apk") }
                 if (apkAsset != null) {
-                    showUpdateDialog(release.tagName, apkAsset.browser_download_url)
+                    ModalDialogBuilder(applicationContext)
+                        .setTitle("UPDATE FOUND")
+                        .addField(DialogField("", "[${release.tagName}]: Download it?", FieldType.HEADER, false))
+                        .onOk {
+                            lifecycleScope.launch {
+                                updateManager.downloadAndInstall(apkAsset.browser_download_url)
+                            }
+                        }
+                        .show()
                 }
             }
         }
-    }
-
-    private fun showUpdateDialog(tagName: String, downloadUrl: String) {
-        AlertDialog.Builder(this)
-            .setTitle("UPDATE FOUND")
-            .setMessage("[${tagName}]: Download it?")
-            .setPositiveButton("DOWNLOAD") { _, _ ->
-                Toast.makeText(this, "Downloading the update...", Toast.LENGTH_LONG).show()
-                lifecycleScope.launch {
-                    updateManager.downloadAndInstall(downloadUrl)
-                }
-            }
-            .setNegativeButton("NO", null)
-            .show()
     }
 
     private fun setupViewPager() {

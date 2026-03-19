@@ -5,6 +5,7 @@ import android.content.Context
 import android.text.InputType
 import android.util.Patterns
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
@@ -16,7 +17,8 @@ import mm.oasis.R
 enum class FieldType {
     TEXT,
     NUMBER,
-    URL
+    URL,
+    HEADER,
 }
 
 data class DialogField(
@@ -35,11 +37,17 @@ data class DialogButton(
 
 class ModalDialogBuilder(private val context: Context) {
 
+    private var title: String? = null
     private val fields = mutableListOf<DialogField>()
     private val buttons = mutableListOf<DialogButton>()
 
     private var onOk: ((Map<String, String?>) -> Unit)? = null
     private var onCancel: (() -> Unit)? = null
+
+    fun setTitle(title: String): ModalDialogBuilder {
+        this.title = title
+        return this
+    }
 
     fun addField(field: DialogField): ModalDialogBuilder {
         fields.add(field)
@@ -61,10 +69,18 @@ class ModalDialogBuilder(private val context: Context) {
         return this
     }
 
-    @SuppressLint("SetTextI18n")
+    @SuppressLint("SetTextI18n", "MissingInflatedId")
     fun show() {
         val view = LayoutInflater.from(context)
             .inflate(R.layout.dialog_constructor, null)
+
+        title?.let {
+            val titleView = view.findViewById<TextView>(R.id.dialogTitle)
+            titleView.text = it
+            titleView.visibility = View.VISIBLE
+        } ?: run {
+            view.findViewById<TextView>(R.id.dialogTitle).visibility = View.GONE
+        }
 
         val fieldsContainer = view.findViewById<LinearLayout>(R.id.fieldsContainer)
         val customButtonsContainer = view.findViewById<LinearLayout>(R.id.customButtonsContainer)
@@ -85,6 +101,10 @@ class ModalDialogBuilder(private val context: Context) {
                 FieldType.TEXT -> input.inputType = InputType.TYPE_CLASS_TEXT
                 FieldType.NUMBER -> input.inputType = InputType.TYPE_CLASS_NUMBER
                 FieldType.URL -> input.inputType = InputType.TYPE_TEXT_VARIATION_URI
+                FieldType.HEADER -> {
+                    input.inputType = InputType.TYPE_CLASS_TEXT
+                    input.visibility = View.GONE
+                }
             }
 
             field.defaultValue?.let {
