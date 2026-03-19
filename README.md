@@ -27,7 +27,6 @@ If you are not aware: almost all modern LLM APIs inherit the same structure crea
 
 [not supported (temporarily, I hope)]
 
-- **markdown**: It is not supported yet.
 - **editing messages**: I haven't done it yet.
 - **web search**: I haven't done it yet.
 
@@ -59,7 +58,6 @@ I really love Rain World (© Videocult) and I decided that I want to make a masc
 
 [не поддерживается (я надеюсь только пока)]
 
-- **markdown**: Пока не поддерживается.
 - **редактирование сообщений**: Еще не сделал.
 - **поиск в интернете**: Еще не сделал.
 
