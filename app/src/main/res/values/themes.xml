@@ -12,7 +12,7 @@
         <item name="postSplashScreenTheme">@style/Theme.OASIS</item>
 
         <!-- font -->
-        <item name="fontFamily">@font/jetbrains_mono_nl_regular</item>
-        <item name="android:fontFamily">@font/jetbrains_mono_nl_regular</item>
+        <item name="fontFamily">@font/jetbrainsmono</item>
+        <item name="android:fontFamily">@font/jetbrainsmono</item>
     </style>
 </resources>

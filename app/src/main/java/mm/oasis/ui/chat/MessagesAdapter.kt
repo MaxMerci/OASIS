@@ -1,9 +1,16 @@
 package mm.oasis.ui.chat
 
+import android.util.TypedValue
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.RecyclerView
+import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.Markwon
+import io.noties.markwon.core.MarkwonTheme
+import io.noties.markwon.ext.latex.JLatexMathPlugin
+import io.noties.markwon.ext.tables.TablePlugin
+import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import mm.oasis.R
 import mm.oasis.repository.ChatRepository
 import mm.oasis.serialization.dto.Message
@@ -32,7 +39,29 @@ class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         if (markwon == null) {
-            markwon = Markwon.create(parent.context)
+            val context = parent.context
+            val jetbrainsMono = ResourcesCompat.getFont(context, R.font.jetbrainsmono)!!
+            val latexSize = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_SP,
+                16f,
+                context.resources.displayMetrics
+            )
+
+            markwon = Markwon.builder(context)
+                .usePlugin(MarkwonInlineParserPlugin.create())
+                .usePlugin(TablePlugin.create(context))
+                .usePlugin(JLatexMathPlugin.create(latexSize) { builder ->
+                    builder.inlinesEnabled(true)
+                })
+                .usePlugin(object : AbstractMarkwonPlugin() {
+                    override fun configureTheme(builder: MarkwonTheme.Builder) {
+                        builder.codeTypeface(jetbrainsMono)
+                        builder.headingBreakHeight(1)
+                        builder.thematicBreakHeight(1)
+                        builder.bulletWidth(10)
+                    }
+                })
+                .build()
         }
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {

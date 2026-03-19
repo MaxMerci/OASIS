@@ -43,9 +43,23 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         })
     }
 
+    fun preprocessMath(text: String): String {
+        val regex = Regex("""(?<!\\)\$((?:[^$]|\\\$)+?)(?<!\\)\$""")
+
+        return regex.replace(text) { matchResult ->
+            val innerText = matchResult.groupValues[1]
+
+            if (innerText.contains("\n")) {
+                "$$$innerText$$"
+            } else {
+                "$${innerText.trim()}$"
+            }
+        }
+    }
+
     @SuppressLint("SetTextI18n")
     fun bind(message: Message, markwon: Markwon?) {
-        val content = message.display
+        val content = preprocessMath(message.display)
         val reasoning = message.reasoning
         val isDifferentMessage = currentBoundMessage !== message
 

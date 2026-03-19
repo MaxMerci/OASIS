@@ -13,9 +13,15 @@ import mm.oasis.ui.chat.ChatFragment
 import mm.oasis.ui.data.DataFragment
 import mm.oasis.ui.models.ModelsFragment
 import com.tbuonomo.viewpagerdotsindicator.WormDotsIndicator
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import mm.oasis.remote.UpdateManager
 
 class MainActivity : AppCompatActivity() {
     private lateinit var viewPager: ViewPager2
+    private val updateManager by lazy { UpdateManager(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -28,6 +34,39 @@ class MainActivity : AppCompatActivity() {
 
         setupViewPager()
         setupBackPressedHandling()
+        checkForUpdates()
+    }
+
+    private fun checkForUpdates() {
+        val currentVersion = try {
+            packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0"
+        } catch (e: Exception) {
+            "1.0"
+        }
+
+        lifecycleScope.launch {
+            val release = updateManager.checkForUpdates(currentVersion)
+            if (release != null) {
+                val apkAsset = release.assets.find { it.name.endsWith(".apk") }
+                if (apkAsset != null) {
+                    showUpdateDialog(release.tagName, apkAsset.browser_download_url)
+                }
+            }
+        }
+    }
+
+    private fun showUpdateDialog(tagName: String, downloadUrl: String) {
+        AlertDialog.Builder(this)
+            .setTitle("UPDATE FOUND")
+            .setMessage("[${tagName}]: Download it?")
+            .setPositiveButton("DOWNLOAD") { _, _ ->
+                Toast.makeText(this, "Downloading the update...", Toast.LENGTH_LONG).show()
+                lifecycleScope.launch {
+                    updateManager.downloadAndInstall(downloadUrl)
+                }
+            }
+            .setNegativeButton("NO", null)
+            .show()
     }
 
     private fun setupViewPager() {

@@ -70,9 +70,7 @@ dependencies {
 
     // Markdown
     implementation(libs.markwon.core)
-
-    // Testing
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    implementation(libs.markwon.ext.tables)
+    implementation(libs.markwon.ext.latex)
+    implementation(libs.markwon.inline.parser)
 }

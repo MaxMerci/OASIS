@@ -70,8 +70,6 @@ object ApiClient{
                 while (!channel.isClosedForRead) {
                     val line = channel.readUTF8Line() ?: break
 
-                    println(line)
-
                     if (line.startsWith("data: ")) {
                         val data = line.removePrefix("data: ").trim()
                         if (data == "[DONE]") return@execute
