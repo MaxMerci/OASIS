@@ -44,18 +44,13 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             val release = updateManager.checkForUpdates(currentVersion)
             if (release != null) {
-                val apkAsset = release.assets.find { it.name.endsWith(".apk") }
-                if (apkAsset != null) {
-                    ModalDialogBuilder(applicationContext)
-                        .setTitle("UPDATE FOUND")
-                        .addField(DialogField("", "[${release.tagName}]: Download it?", FieldType.HEADER, false))
-                        .onOk {
-                            lifecycleScope.launch {
-                                updateManager.downloadAndInstall(apkAsset.browser_download_url)
-                            }
-                        }
-                        .show()
-                }
+                ModalDialogBuilder(this@MainActivity)
+                    .setTitle("UPDATE FOUND")
+                    .addField(DialogField("", "[${release.tagName}]: Open release page?", FieldType.HEADER, false))
+                    .onOk {
+                        updateManager.openUpdateLink(release.htmlUrl)
+                    }
+                    .show()
             }
         }
     }

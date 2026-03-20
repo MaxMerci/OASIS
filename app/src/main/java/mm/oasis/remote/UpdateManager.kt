@@ -2,26 +2,21 @@ package mm.oasis.remote
 
 import android.content.Context
 import android.content.Intent
-import androidx.core.content.FileProvider
+import android.net.Uri
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
-import io.ktor.client.statement.*
 import io.ktor.serialization.kotlinx.json.*
-import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import java.io.File
 
 @Serializable
 data class GitHubRelease(
     @SerialName("tag_name") val tagName: String,
+    @SerialName("html_url") val htmlUrl: String,
     val assets: List<GitHubAsset>
 )
 
@@ -69,35 +64,14 @@ class UpdateManager(private val context: Context) {
         return false
     }
 
-    suspend fun downloadAndInstall(assetUrl: String) {
-        withContext(Dispatchers.IO) {
-            try {
-                val response = client.get(assetUrl)
-                val file = File(context.externalCacheDir, "update.apk")
-                val channel: ByteReadChannel = response.bodyAsChannel()
-                
-                file.outputStream().use { output ->
-                    channel.copyTo(output)
-                }
-                
-                installApk(file)
-            } catch (e: Exception) {
-                e.printStackTrace()
+    fun openUpdateLink(url: String) {
+        try {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-    }
-
-    private fun installApk(file: File) {
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            file
-        )
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(intent)
     }
 }
