@@ -16,8 +16,6 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
-import mm.oasis.serialization.dto.ChatCompletionResponse
-import mm.oasis.serialization.dto.Message
 import okhttp3.Protocol
 import java.util.concurrent.TimeUnit
 
@@ -29,8 +27,6 @@ private val json = kotlinx.serialization.json.Json {
 
 object ApiClient{
     private var generationJob: Job? = null
-    var generating = false
-        private set
 
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) { json(json) }
@@ -54,11 +50,8 @@ object ApiClient{
         }
     }
 
-    fun generateTextStream(request: Request): Flow<ChatCompletionChunk> = channelFlow {
-        generating = true
+    fun generateStream(request: Request): Flow<ChatCompletionChunk> = channelFlow {
         generationJob = coroutineContext[Job]
-
-        println(request)
 
         try {
             client.preparePost("${ProfileRepository.currentProfile!!.endPoint.trimEnd('/')}/chat/completions") {
@@ -89,15 +82,12 @@ object ApiClient{
             )
             send(chunk)
         } finally {
-            generating = false
             generationJob = null
         }
     }
 
     fun stop() {
         generationJob?.cancel()
-        generationJob = null
-        generating = false
     }
 
     suspend fun fetchModels(): LLMResponse {

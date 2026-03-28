@@ -14,19 +14,6 @@ data class Request(
     @SerialName("top_p") var topP: Double? = null,
     @SerialName("max_tokens") var maxTokens: Int? = null,
     @SerialName("include_reasoning") var includeReasoning: Boolean? = null,
-    val tools: List<Tool>? = null,
+    var tools: List<Tool>? = null,
     @SerialName("tool_choice") val toolChoice: String? = null,
-) {
-    @Serializable
-    data class Tool(
-        val type: String = "function",
-        val function: FunctionDefinition
-    ) {
-        @Serializable
-        data class FunctionDefinition(
-            val name: String,
-            val description: String? = null,
-            val parameters: JsonElement
-        )
-    }
-}
+)

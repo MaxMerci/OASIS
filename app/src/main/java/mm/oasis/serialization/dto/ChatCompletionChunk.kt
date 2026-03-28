@@ -27,3 +27,17 @@ data class ChatCompletionChunk(
         @SerialName("tool_calls") val toolCalls: List<ToolCallChunk>? = null
     )
 }
+
+@Serializable
+data class ToolCallChunk(
+    val index: Int,
+    val id: String? = null,
+    val type: String? = null,
+    val function: FunctionCall? = null
+)
+
+@Serializable
+data class FunctionCall(
+    val name: String? = null,
+    val arguments: String? = null
+)

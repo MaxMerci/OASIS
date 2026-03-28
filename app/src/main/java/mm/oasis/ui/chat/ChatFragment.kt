@@ -13,12 +13,15 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import mm.oasis.R
-import mm.oasis.remote.ApiClient
+import mm.oasis.remote.generating
+import mm.oasis.remote.stop
+import mm.oasis.remote.use
 import mm.oasis.repository.ChatRepository
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.ContentPart
@@ -128,6 +131,7 @@ class ChatFragment : Fragment() {
         return name
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     fun updateMessages() {
         requireActivity().runOnUiThread {
             messagesAdapter.notifyDataSetChanged()
@@ -138,72 +142,61 @@ class ChatFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     private fun sendMessage(request: Request) {
-        if (ApiClient.generating) {
-            ApiClient.stop()
+        if (generating) {
+            stop()
             input.setGenerating(false)
             return
         }
 
-        val cProfile = ProfileRepository.currentProfile == null
-        val cModel = ProfileRepository.currentProfile?.model == null
-
-        if (cModel || cProfile) {
-            val errorText = if (cProfile) "PROFILE NOT SELECTED" else "MODEL NOT SELECTED"
-            com.google.android.material.snackbar.Snackbar.make(
-                requireView(),
-                errorText,
-                com.google.android.material.snackbar.Snackbar.LENGTH_SHORT
-            ).show()
+        val errorText = when {
+            ProfileRepository.currentProfile == null -> "PROFILE NOT SELECTED"
+            ProfileRepository.currentProfile?.model == null -> "MODEL NOT SELECTED"
+            else -> null
+        }
+        errorText?.let {
+            Snackbar.make(requireView(), it, Snackbar.LENGTH_SHORT).show()
             return
         }
-
-        val currentChat = ChatRepository.currentChat
-        currentChat.name = request.messages.first().display.split(" ").first()
-        currentChat.messages += request.messages
-
-        ChatRepository.updateItem(ChatRepository.currentIndex) { it }
-
-        updateMessages()
 
         lifecycleScope.launch {
             input.setGenerating(true)
 
-            currentChat.messages += listOf(
-                Message(
-                    avatarUrl = ProfileRepository.currentProfile?.model?.avatarUrl,
-                    role = Message.MessageRole.ASSISTANT,
-                    content = MessageContent.Parts(
-                        listOf(ContentPart.TextPart(""))
-                    ),
-                    reasoning = "",
-                    name = request.model,
-                )
+            val currentChat = ChatRepository.currentChat
+            currentChat.messages += request.messages
+
+            currentChat.messages += Message(
+                avatarUrl = ProfileRepository.currentProfile?.model?.avatarUrl,
+                role = Message.MessageRole.ASSISTANT,
+                content = MessageContent.Parts(
+                    listOf(ContentPart.TextPart(""))
+                ),
+                reasoning = "",
+                name = request.model,
             )
             updateMessages()
 
-            try {
-                ApiClient.generateTextStream(request).collect { chunk ->
-                    val contentDelta = chunk.choices.getOrNull(0)?.delta?.content ?: ""
-                    val reasoningDelta = chunk.choices.getOrNull(0)?.delta?.reasoning ?: ""
+            updateMessages()
 
+            try {
+                use(request).collect { flow ->
                     val message = currentChat.messages.last()
                     val currentContent = message.content
                     if (currentContent is MessageContent.Parts) {
                         val updatedParts = currentContent.parts.map { part ->
                             if (part is ContentPart.TextPart) {
-                                part.copy(text = part.text + contentDelta)
+                                part.copy(text = part.text + flow.content)
                             } else {
                                 part
                             }
                         }
                         message.content = MessageContent.Parts(updatedParts)
                     }
-                    message.reasoning = (message.reasoning ?: "") + reasoningDelta
+                    message.reasoning = (message.reasoning ?: "") + flow.reasoning
 
                     requireActivity().runOnUiThread { messagesAdapter.notifyDataSetChanged() }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Snackbar.make(requireView(), e.toString(), Snackbar.LENGTH_SHORT).show()
             } finally {
                 input.setGenerating(false)
                 ChatRepository.save()
