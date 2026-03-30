@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -26,41 +27,55 @@
                 android:id="@+id/avatar"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:scaleType="centerCrop" />
-
+                android:scaleType="centerCrop"/>
         </com.google.android.material.card.MaterialCardView>
 
         <TextView
             android:id="@+id/name"
+            android:text="NAME"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="[NAME] >"
             android:textColor="@color/hint"
-            android:textSize="12sp" />
-
+            android:textSize="12sp"/>
     </LinearLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/reasoning_list"
+    <FrameLayout
+        android:id="@+id/reasoningContainer"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:paddingLeft="5dp"
-        android:paddingRight="5dp"
+        android:layout_height="wrap_content"
         android:visibility="gone"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+        android:paddingLeft="8dp"
+        android:paddingRight="8dp"
+        android:clipChildren="false"
+        android:clipToPadding="false">
+
+        <TextView
+            android:id="@+id/reasoningCurrent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="@color/hint"/>
+
+        <TextView
+            android:id="@+id/reasoningNext"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="@color/hint"
+            android:alpha="0"/>
+    </FrameLayout>
 
     <TextView
         android:id="@+id/content"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:text="CONTENT"
         android:maxWidth="280dp"
         android:paddingLeft="12dp"
         android:paddingTop="3dp"
         android:paddingRight="12dp"
         android:paddingBottom="12dp"
-        android:text="CONTENT"
         android:textColor="@color/text"
         android:textSize="16sp"
-        android:textIsSelectable="true" />
-
+        android:textIsSelectable="true"/>
 </LinearLayout>

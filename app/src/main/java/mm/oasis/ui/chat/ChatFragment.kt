@@ -19,9 +19,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import mm.oasis.R
-import mm.oasis.remote.generating
-import mm.oasis.remote.stop
-import mm.oasis.remote.use
+import mm.oasis.remote.Agent
 import mm.oasis.repository.ChatRepository
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.ContentPart
@@ -142,8 +140,8 @@ class ChatFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     private fun sendMessage(request: Request) {
-        if (generating) {
-            stop()
+        if (Agent.isGenerating) {
+            Agent.stop()
             input.setGenerating(false)
             return
         }
@@ -178,7 +176,7 @@ class ChatFragment : Fragment() {
             updateMessages()
 
             try {
-                use(request).collect { flow ->
+                Agent.use(request).collect { flow ->
                     val message = currentChat.messages.last()
                     val currentContent = message.content
                     if (currentContent is MessageContent.Parts) {

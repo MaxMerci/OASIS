@@ -2,8 +2,8 @@ package mm.oasis.ui.chat.message
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
-import android.view.MotionEvent
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
@@ -11,157 +11,134 @@ import com.bumptech.glide.Glide
 import io.noties.markwon.Markwon
 import mm.oasis.R
 import mm.oasis.serialization.dto.Message
-import kotlin.math.max
+import kotlin.math.abs
+import androidx.core.view.isVisible
+
+/* дело такое, AssistantViewHolder постоянно пересоздается и хранить такую переменную в нем просто бесполезно,
+так как класс будет пересоздаватся и значение всегда будет -1
+самый простой способ как по мне был вот такой:
+*/
+var lastReasoningIndex =  -1
 
 class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
     private val avatarView: ImageView = view.findViewById(R.id.avatar)
     private val nameView: TextView = view.findViewById(R.id.name)
     private val contentView: TextView = view.findViewById(R.id.content)
-    private val reasoningList: RecyclerView = view.findViewById(R.id.reasoning_list)
-    private var lastTagetPos: Int? = null
-    private var currentBoundMessage: Message? = null
-    
-    private var lastContent: String? = null
-    private var lastReasoning: String? = null
-    private var lastTargetHeight: Int = -1
+
+    private val reasoningContainer: FrameLayout = view.findViewById(R.id.reasoningContainer)
+    private val reasoningCurrent: TextView = view.findViewById(R.id.reasoningCurrent)
+    private val reasoningNext: TextView = view.findViewById(R.id.reasoningNext)
 
     private var heightAnimator: ValueAnimator? = null
 
-    init {
-        reasoningList.isNestedScrollingEnabled = true
-        reasoningList.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
-            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
-                when (e.action) {
-                    MotionEvent.ACTION_DOWN -> {
-                        rv.parent.requestDisallowInterceptTouchEvent(true)
-                    }
-                }
-                return false
-            }
-            override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) {}
-            override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) {}
-        })
-    }
-
-    fun preprocessMath(text: String): String {
+    /**
+     * иногда ллм могут писать неправильное форматирование
+     * это не латекс, а LaTeX, что является языком форматировния
+     * оно кстати не нужно, потомучто LaTeX тут просто не работает ;)
+     * */
+    fun latexFix(text: String): String {
         val regex = Regex("""(?<!\\)\$((?:[^$]|\\\$)+?)(?<!\\)\$""")
-
-        return regex.replace(text) { matchResult ->
-            val innerText = matchResult.groupValues[1]
-
-            if (innerText.contains("\n")) {
-                "$$$innerText$$"
-            } else {
-                "$${innerText.trim()}$"
-            }
+        return regex.replace(text) {
+            val inner = it.groupValues[1]
+            if (inner.contains("\n")) "$$$inner$$" else "$${inner.trim()}$"
         }
     }
 
     @SuppressLint("SetTextI18n")
     fun bind(message: Message, markwon: Markwon?) {
-        val content = preprocessMath(message.display)
+        val content = latexFix(message.display)
         val reasoning = message.reasoning
-        val isDifferentMessage = currentBoundMessage !== message
 
-        if (!isDifferentMessage && lastContent == content && lastReasoning == reasoning) {
-            return
-        }
+        Glide.with(itemView.context)
+            .load(message.avatarUrl)
+            .centerCrop()
+            .into(avatarView)
 
-        if (isDifferentMessage) {
-            currentBoundMessage = message
-            lastTagetPos = null
-            lastContent = null
-            lastReasoning = null
-            lastTargetHeight = -1
-            
-            Glide.with(itemView.context)
-                .load(message.avatarUrl)
-                .centerCrop()
-                .into(avatarView)
+        nameView.text = "[${message.name ?: "ASSISTANT"}] >"
 
-            nameView.text = "[${message.name ?: "ASSISTANT"}] >"
-        }
-
-        if (content != lastContent) {
+        if (content.isEmpty() && reasoning.isNullOrEmpty()) {
+            contentView.text = "Thinks..."
+        } else {
             markwon?.setMarkdown(contentView, content)
-            lastContent = content
         }
-
-        val hasContent = content.isNotBlank()
 
         if (!reasoning.isNullOrBlank()) {
-            val reasoningParts = reasoning.split("\n\n").filter { it.isNotBlank() }
-            reasoningList.visibility = View.VISIBLE
+            val parts = reasoning.split("\n\n").filter { it.isNotBlank() }
 
-            val targetPos = if (hasContent) {
-                reasoningParts.size - 1
+            val targetIndex = when {
+                parts.size >= 2 -> parts.size - 2
+                parts.size == 1 -> 0
+                else -> -1
+            }
+
+            val newText = if (targetIndex != -1) parts[targetIndex].trim() else null
+
+            if (newText != null && lastReasoningIndex != targetIndex) {
+                lastReasoningIndex = targetIndex
+                animateTextChange(newText, markwon)
+            } else if (newText != null && targetIndex == 0) {
+                markwon?.setMarkdown(reasoningCurrent, newText) // без анимации, обновление первого абзаца
+            }
+
+            if (content.isNotBlank()) {
+                hideReasoning()
             } else {
-                max(0, reasoningParts.size - 2)
+                showReasoning()
             }
-
-            var adapter = reasoningList.adapter as? ReasoningAdapter
-            if (adapter == null) {
-                adapter = ReasoningAdapter(reasoningParts, markwon, targetPos) { height ->
-                    animateReasoningHeight(height)
-                }
-                reasoningList.adapter = adapter
-            } else if (reasoning != lastReasoning || lastTagetPos != targetPos) {
-                adapter.updateData(reasoningParts, targetPos)
-            }
-            
-            if (lastTagetPos == null) {
-                reasoningList.scrollToPosition(targetPos)
-                lastTagetPos = targetPos
-            } else if (lastTagetPos != targetPos) {
-                reasoningList.smoothScrollToPosition(targetPos)
-                lastTagetPos = targetPos
-            }
-            
-            lastReasoning = reasoning
         } else {
-            reasoningList.visibility = View.GONE
-            heightAnimator?.cancel()
-            lastTargetHeight = -1
-            lastReasoning = null
+            hideReasoning()
         }
     }
 
-    private fun animateReasoningHeight(targetHeight: Int) {
-        if (this.lastTargetHeight == targetHeight) return
-        this.lastTargetHeight = targetHeight
+    private fun animateTextChange(newText: String, markwon: Markwon?) {
+        reasoningNext.alpha = 0f
+        markwon?.setMarkdown(reasoningNext, newText)
 
-        val currentParamsHeight = reasoningList.layoutParams.height
-        
-        // During streaming (small changes), skip animation to avoid "shaking"
-        // Starting a new animation on every few characters is what causes the jitter
-        if (Math.abs(currentParamsHeight - targetHeight) < 50 && currentParamsHeight > 0) {
-            heightAnimator?.cancel()
-            val params = reasoningList.layoutParams
-            params.height = targetHeight
-            reasoningList.layoutParams = params
-            return
+        reasoningNext.post {
+            val targetHeight = reasoningNext.measuredHeight
+            animateHeight(targetHeight)
         }
+
+        reasoningNext.animate().alpha(1f).setDuration(200).start()
+        reasoningCurrent.animate().alpha(0f).setDuration(200).withEndAction {
+            reasoningCurrent.text = reasoningNext.text
+            reasoningCurrent.alpha = 1f
+            reasoningNext.alpha = 0f
+        }.start()
+    }
+
+    private fun animateHeight(target: Int) {
+        val start = reasoningContainer.height
+
+        if (abs(start - target) < 10) return
 
         heightAnimator?.cancel()
 
-        val startHeight = if (reasoningList.height > 0) reasoningList.height else currentParamsHeight
-        if (startHeight <= 0 && targetHeight >= 0) {
-            // Initial bind or setting height for the first time
-            val params = reasoningList.layoutParams
-            params.height = targetHeight
-            reasoningList.layoutParams = params
-            return
-        }
-        
-        heightAnimator = ValueAnimator.ofInt(startHeight, targetHeight).apply {
+        heightAnimator = ValueAnimator.ofInt(start, target).apply {
             duration = 200
-            addUpdateListener { animator ->
-                val value = animator.animatedValue as Int
-                val params = reasoningList.layoutParams
+            addUpdateListener {
+                val value = it.animatedValue as Int
+                val params = reasoningContainer.layoutParams
                 params.height = value
-                reasoningList.layoutParams = params
+                reasoningContainer.layoutParams = params
             }
             start()
         }
+    }
+
+    private fun showReasoning() {
+        if (reasoningContainer.isVisible) return
+
+        reasoningContainer.alpha = 0f
+        reasoningContainer.visibility = View.VISIBLE
+        reasoningContainer.animate().alpha(1f).setDuration(200).start()
+    }
+
+    private fun hideReasoning() {
+        if (reasoningContainer.visibility != View.VISIBLE) return
+
+        reasoningContainer.animate().alpha(0f).setDuration(200).withEndAction {
+            reasoningContainer.visibility = View.GONE
+        }.start()
     }
 }

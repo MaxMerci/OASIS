@@ -30,23 +30,6 @@ object ChatRepository : Repository<ChatData>("chats", ChatData.serializer()) {
     }
 
     fun emptyChat(): ChatData {
-        // я должен был оставить свой след
-        val names = listOf(
-            "обсуждение писек",
-            "ЖОПА",
-            "казахстан",
-            "почта эпштейна",
-            "ЭРП чатик",
-            "фетишистский онлик",
-            "дети толстых мам",
-            "гей клуб ромашка",
-            "фистинг клуб \"пальчики оближешь\""
-        )
-        val chatNames = mutableListOf<String>()
-        for (i in 0..1000) {
-            chatNames.add("Chat $i")
-        }
-        val name = listOf(names, chatNames).random()
-        return ChatData(name.random())
+        return ChatData("Chat ${items.count() + 1}")
     }
 }

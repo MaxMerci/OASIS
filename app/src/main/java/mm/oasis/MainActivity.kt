@@ -15,11 +15,10 @@ import mm.oasis.ui.models.ModelsFragment
 import com.tbuonomo.viewpagerdotsindicator.WormDotsIndicator
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
-import mm.oasis.remote.ToolRegistry
 import mm.oasis.remote.UpdateManager
-import mm.oasis.ui.modal.DialogField
-import mm.oasis.ui.modal.FieldType
-import mm.oasis.ui.modal.ModalDialogBuilder
+import mm.oasis.ui.objects.DialogField
+import mm.oasis.ui.objects.FieldType
+import mm.oasis.ui.objects.ModalDialogBuilder
 
 class MainActivity : AppCompatActivity() {
     private lateinit var viewPager: ViewPager2

@@ -17,10 +17,10 @@ import mm.oasis.R
 import mm.oasis.repository.ChatRepository
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.storage.ProfileData
-import mm.oasis.ui.modal.DialogButton
-import mm.oasis.ui.modal.DialogField
-import mm.oasis.ui.modal.FieldType
-import mm.oasis.ui.modal.ModalDialogBuilder
+import mm.oasis.ui.objects.DialogButton
+import mm.oasis.ui.objects.DialogField
+import mm.oasis.ui.objects.FieldType
+import mm.oasis.ui.objects.ModalDialogBuilder
 import kotlin.math.abs
 
 class DataFragment : Fragment() {
@@ -34,12 +34,15 @@ class DataFragment : Fragment() {
     /* CHATS */
     private lateinit var chatsView: RecyclerView
     private lateinit var addChatHint: TextView
-    private val chatsAdapter = ChatsAdapter(::onChatClick)
+    private val chatsAdapter = ChatsAdapter(::onChatClick, ::onLongChatClick)
 
+    /* ADD CHAT MECHANICS */
     private var startY = 0f
-    private var startX = 0f
-    private var isPulling = false
-    private val pullThreshold = 350f
+    private var isDragging = false
+    private var isAtTop = true
+    private var currentOffset = 0f
+    private val maxPull = 400f
+    private val triggerThreshold = 250f
 
     @SuppressLint("NotifyDataSetChanged", "ClickableViewAccessibility")
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -58,84 +61,94 @@ class DataFragment : Fragment() {
         chatsView = view.findViewById(R.id.chatsList)
         chatsView.adapter = chatsAdapter
 
-        setupPullToAdd()
-
-        val itemTouchHelperCallback = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
-            override fun onMove(recyclerView: RecyclerView, viewHolder: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean = false
-
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                val position = viewHolder.bindingAdapterPosition
-                if (position != RecyclerView.NO_POSITION) {
-                    ChatRepository.removeAt(position)
-                }
-            }
-
-            override fun getSwipeThreshold(viewHolder: RecyclerView.ViewHolder): Float = 0.5f
-
-            override fun isItemViewSwipeEnabled(): Boolean {
-                return !isPulling
-            }
-        }
-        ItemTouchHelper(itemTouchHelperCallback).attachToRecyclerView(chatsView)
-
         lifecycleScope.launch {
             ChatRepository.state.collect {
                 chatsAdapter.notifyDataSetChanged()
             }
         }
 
-        return view
-    }
-
-    @SuppressLint("ClickableViewAccessibility")
-    private fun setupPullToAdd() {
-        val touchSlop = ViewConfiguration.get(requireContext()).scaledTouchSlop
-
-        chatsView.setOnTouchListener { _, event ->
-            when (event.action) {
+        chatsView.setOnTouchListener { v, event ->
+            when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    startY = event.y
-                    startX = event.x
-                    isPulling = false
-                    false
+                    startY = event.rawY
+                    isDragging = false
                 }
+
                 MotionEvent.ACTION_MOVE -> {
-                    val deltaY = event.y - startY
-                    val deltaX = event.x - startX
+                    val dy = event.rawY - startY
 
-                    if (!isPulling && deltaY > touchSlop && deltaY > abs(deltaX) && !chatsView.canScrollVertically(-1)) {
-                        isPulling = true
-                    }
+                    isAtTop = !chatsView.canScrollVertically(-1)
 
-                    if (isPulling) {
-                        val translation = (deltaY * 0.4f).coerceAtLeast(0f)
-                        chatsView.translationY = translation
-                        addChatHint.alpha = (translation / (pullThreshold * 0.4f)).coerceAtMost(1f)
-                        true
-                    } else {
-                        false
+                    if (dy > 0 && isAtTop) {
+                        isDragging = true
+
+                        val offset = (dy / 2).coerceAtMost(maxPull)
+                        currentOffset = offset
+
+                        chatsView.translationY = offset
+
+                        val alpha = (offset / triggerThreshold).coerceIn(0f, 1f)
+                        addChatHint.alpha = alpha
+
+                        return@setOnTouchListener true
                     }
                 }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (isPulling) {
-                        if (chatsView.translationY > pullThreshold * 0.4f) {
-                            ChatRepository.addAt(0, ChatRepository.emptyChat())
+
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL -> {
+                    if (isDragging) {
+                        if (currentOffset > triggerThreshold) {
+                            ChatRepository.addAt(0,ChatRepository.emptyChat(), true)
+                            chatsAdapter.notifyDataSetChanged()
                         }
-                        chatsView.animate().translationY(0f).setDuration(250).start()
-                        addChatHint.animate().alpha(0f).setDuration(250).start()
-                        isPulling = false
-                        true
-                    } else {
-                        false
+
+                        chatsView.animate()
+                            .translationY(0f)
+                            .setDuration(200)
+                            .start()
+
+                        addChatHint.animate()
+                            .alpha(0f)
+                            .setDuration(200)
+                            .start()
+
+                        currentOffset = 0f
+
+                        isDragging = false
+                        return@setOnTouchListener true
                     }
                 }
-                else -> false
             }
+            false
         }
+
+        return view
     }
 
     private fun onChatClick(pos: Int) {
         ChatRepository.updateIndex(pos)
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
+    private fun onLongChatClick(pos: Int) {
+        val chat = ChatRepository.items[pos]
+        ModalDialogBuilder(requireContext())
+            .addField(DialogField("name", "NAME", FieldType.TEXT, true, chat.name))
+            .addButton(DialogButton(
+                "DELETE",
+                onClick = {
+                    ChatRepository.removeAt(pos, true)
+                    chatsAdapter.notifyDataSetChanged()
+                }
+            ))
+            .onOk { values ->
+                values["name"]?.let {
+                    chat.name = it
+                    ChatRepository.save()
+                    chatsAdapter.notifyDataSetChanged()
+                }
+            }
+            .show()
     }
 
     private fun onProfileClick(pos: Int) {

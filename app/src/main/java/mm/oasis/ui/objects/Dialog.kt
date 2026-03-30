@@ -1,4 +1,4 @@
-package mm.oasis.ui.modal
+package mm.oasis.ui.objects
 
 import android.annotation.SuppressLint
 import android.content.Context

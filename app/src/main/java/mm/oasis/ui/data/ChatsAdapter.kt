@@ -1,5 +1,6 @@
 package mm.oasis.ui.data
 
+import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,7 +10,8 @@ import mm.oasis.R
 import mm.oasis.repository.ChatRepository
 
 class ChatsAdapter(
-    private val onItemClick: (Int) -> Unit
+    private val onItemClick: (Int) -> Unit,
+    private val onLongItemClick: (Int) -> Unit
 ) : RecyclerView.Adapter<ChatsAdapter.ChatViewHolder>() {
     override fun getItemCount() = ChatRepository.items.size
 
@@ -32,11 +34,16 @@ class ChatsAdapter(
         private val name: TextView = itemView.findViewById(R.id.name)
 
         fun bind(chatName: String) {
-            name.text = chatName
-            itemView.setOnClickListener {
-                val pos = bindingAdapterPosition
-                if (pos != RecyclerView.NO_POSITION) {
+            val pos = bindingAdapterPosition
+            if (pos != RecyclerView.NO_POSITION) {
+                name.text = chatName
+                itemView.setOnClickListener {
                     onItemClick(pos)
+                }
+
+                itemView.setOnLongClickListener {
+                    onLongItemClick(pos)
+                    true
                 }
             }
         }
