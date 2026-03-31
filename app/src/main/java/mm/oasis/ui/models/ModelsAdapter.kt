@@ -1,29 +1,32 @@
 package mm.oasis.ui.models
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
+import android.view.View.*
 import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.animation.doOnEnd
 import androidx.recyclerview.widget.RecyclerView
 import mm.oasis.R
 import mm.oasis.serialization.dto.LLMRaw
 import mm.oasis.serialization.dto.LLMResponse
+import mm.oasis.ui.data.animatedItems
 
 class ModelsAdapter(private val onModelClick: (LLMRaw) -> Unit) : RecyclerView.Adapter<ModelsAdapter.ModelViewHolder>() {
     private var allModels: LLMResponse? = null
     private var viewModels: List<LLMRaw> = emptyList()
-    private val expandedPositions = mutableSetOf<String>()
+
+    private val expandedItems = mutableSetOf<String>()
 
     @SuppressLint("NotifyDataSetChanged")
     fun setModels(newModels: LLMResponse) {
         allModels = newModels
         viewModels = newModels.data
-        expandedPositions.clear()
+        expandedItems.clear()
         notifyDataSetChanged()
     }
 
@@ -53,88 +56,49 @@ class ModelsAdapter(private val onModelClick: (LLMRaw) -> Unit) : RecyclerView.A
     override fun getItemCount() = viewModels.size
 
     inner class ModelViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        private val container: ViewGroup = view.findViewById(R.id.textContainer)
         private val modelId: TextView = view.findViewById(R.id.modelId)
         private val modelExtra: TextView = view.findViewById(R.id.modelExtra)
         private val toggleButton: ImageView = view.findViewById(R.id.toggleButton)
-        private var currentAnimator: ValueAnimator? = null
 
         fun bind(model: LLMRaw) {
             modelId.text = model.id
             modelExtra.text = formatExtra(model.extra)
 
-            val isExpanded = expandedPositions.contains(model.id)
+            val isExpanded = expandedItems.contains(model.id)
+
+            modelExtra.visibility = if (isExpanded) VISIBLE else GONE
             toggleButton.rotation = if (isExpanded) 180f else 0f
-            
-            currentAnimator?.cancel()
+            modelExtra.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
 
-            val params = container.layoutParams
-            if (isExpanded) {
-                params.height = ViewGroup.LayoutParams.WRAP_CONTENT
-            } else {
-                val width = if (container.width > 0) {
-                    container.width
+            val toggle = {
+                if (expandedItems.contains(model.id)) {
+                    expandedItems.remove(model.id)
+                    collapse(modelExtra)
+                    toggleButton.animate().rotation(0f).start()
+                    modelExtra.animate().alpha(0f)
                 } else {
-                    val metrics = itemView.resources.displayMetrics
-                    metrics.widthPixels - ((16 + 8 + toggleButton.layoutParams.width) * metrics.density).toInt()
+                    expandedItems.add(model.id)
+                    expand(modelExtra)
+                    toggleButton.animate().rotation(180f).start()
+                    modelExtra.animate().alpha(1f)
                 }
-                
-                val widthSpec = View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY)
-                val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-                modelId.measure(widthSpec, heightSpec)
-                params.height = modelId.measuredHeight
-            }
-            container.layoutParams = params
-
-            itemView.setOnClickListener {
-                onModelClick(model)
             }
 
-            toggleButton.setOnClickListener {
-                val pos = bindingAdapterPosition
-                if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+            toggleButton.setOnClickListener { toggle() }
+            modelExtra.setOnClickListener { toggle() }
 
-                val isExpanding = !expandedPositions.contains(model.id)
-                val startHeight = container.height
+            modelId.setOnClickListener { onModelClick(model) }
 
-                val widthSpec = View.MeasureSpec.makeMeasureSpec(container.width, View.MeasureSpec.EXACTLY)
-                val heightSpec = View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-                
-                val targetHeight = if (isExpanding) {
-                    container.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-                    container.measure(widthSpec, heightSpec)
-                    container.measuredHeight
-                } else {
-                    modelId.measure(widthSpec, heightSpec)
-                    modelId.measuredHeight
-                }
+            itemView.apply {
+                alpha = 0f
+                scaleY = 0f
 
-                container.layoutParams.height = startHeight
-
-                currentAnimator?.cancel()
-                currentAnimator = ValueAnimator.ofInt(startHeight, targetHeight).apply {
-                    duration = 300
-                    addUpdateListener { animator ->
-                        val value = animator.animatedValue as Int
-                        container.layoutParams.height = value
-                        container.requestLayout()
-                        
-                        val fraction = animator.animatedFraction
-                        toggleButton.rotation = if (isExpanding) fraction * 180f else 180f - (fraction * 180f)
-                    }
-                    addListener(object : AnimatorListenerAdapter() {
-                        override fun onAnimationEnd(animation: Animator) {
-                            if (isExpanding) {
-                                expandedPositions.add(model.id)
-                                container.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-                            } else {
-                                expandedPositions.remove(model.id)
-                                container.layoutParams.height = targetHeight
-                            }
-                        }
-                    })
-                    start()
-                }
+                animate()
+                    .alpha(1f)
+                    .scaleY(1f)
+                    .setDuration(300L)
+                    .setInterpolator(AccelerateDecelerateInterpolator())
+                    .start()
             }
         }
     }
@@ -153,5 +117,48 @@ class ModelsAdapter(private val onModelClick: (LLMRaw) -> Unit) : RecyclerView.A
             }
         }
         return sb.toString().trimEnd()
+    }
+
+    private fun expand(view: View) {
+        view.measure(
+            MeasureSpec.makeMeasureSpec((view.parent as View).width, MeasureSpec.EXACTLY),
+            MeasureSpec.UNSPECIFIED
+        )
+        val targetHeight = view.measuredHeight
+
+        view.layoutParams.height = 0
+        view.visibility = VISIBLE
+
+        val animator = ValueAnimator.ofInt(0, targetHeight)
+        animator.duration = 250
+        animator.interpolator = AccelerateDecelerateInterpolator()
+
+        animator.addUpdateListener {
+            val value = it.animatedValue as Int
+            view.layoutParams.height = value
+            view.requestLayout()
+        }
+
+        animator.start()
+    }
+
+    private fun collapse(view: View) {
+        val initialHeight = view.measuredHeight
+
+        val animator = ValueAnimator.ofInt(initialHeight, 0)
+        animator.duration = 250
+        animator.interpolator = AccelerateDecelerateInterpolator()
+
+        animator.addUpdateListener {
+            val value = it.animatedValue as Int
+            view.layoutParams.height = value
+            view.requestLayout()
+        }
+
+        animator.doOnEnd {
+            view.visibility = GONE
+        }
+
+        animator.start()
     }
 }

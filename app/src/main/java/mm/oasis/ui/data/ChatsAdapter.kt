@@ -1,13 +1,16 @@
 package mm.oasis.ui.data
 
-import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.delay
 import mm.oasis.R
 import mm.oasis.repository.ChatRepository
+import mm.oasis.serialization.storage.ChatData
+
+val animatedItems = mutableSetOf<ChatData>()
 
 class ChatsAdapter(
     private val onItemClick: (Int) -> Unit,
@@ -27,20 +30,33 @@ class ChatsAdapter(
 
     override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
         val chat = ChatRepository.items[position]
-        holder.bind(chat.name)
+        holder.bind(chat)
     }
 
     inner class ChatViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         private val name: TextView = itemView.findViewById(R.id.name)
 
-        fun bind(chatName: String) {
+        fun bind(chat: ChatData) {
             val pos = bindingAdapterPosition
             if (pos != RecyclerView.NO_POSITION) {
-                name.text = chatName
-                itemView.setOnClickListener {
-                    onItemClick(pos)
+                name.text = chat.name
+
+                itemView.apply {
+                    if (!animatedItems.contains(chat)) {
+                        animatedItems.add(chat)
+                        alpha = 0f
+                        scaleY = 0f
+
+                        animate()
+                            .alpha(1f)
+                            .scaleY(1f)
+                            .setDuration(250)
+                            .setStartDelay((pos * 100L))
+                            .start()
+                    }
                 }
 
+                itemView.setOnClickListener { onItemClick(pos) }
                 itemView.setOnLongClickListener {
                     onLongItemClick(pos)
                     true

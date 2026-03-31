@@ -16,7 +16,7 @@ data class LLMResponse(
 data class LLMRaw(
     val id: String,
     var avatarUrl: String? = null,
-    val extra: Map<String, Any?> = emptyMap()
+    val extra: Map<String, Any?> = emptyMap(),
 )
 
 object LLMRawSerializer : KSerializer<LLMRaw> {

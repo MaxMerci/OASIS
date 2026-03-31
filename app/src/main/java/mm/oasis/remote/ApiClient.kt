@@ -97,7 +97,7 @@ object ApiClient{
             "gemini" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://google.com",
             "gemma" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://google.com",
             "meta" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://chatgpt.com",
-            "mistralai" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://mistral.ai",
+            "mistral" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://mistral.ai",
             "mistral" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://mistral.ai",
             "cohere" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://cohere.com/",
             "grok" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://grok.com/"
@@ -108,7 +108,9 @@ object ApiClient{
         val baseUrl = profile?.endPoint?.trimEnd('/')
         val url = "$baseUrl/models"
 
-        val response = client.get(url)
+        val response = client.get(url) {
+            parameter("order", "most-popular")
+        }
 
         if (response.status.value != 200) {
             val errorText = response.bodyAsText()

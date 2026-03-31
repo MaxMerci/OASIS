@@ -41,8 +41,8 @@ class DataFragment : Fragment() {
     private var isDragging = false
     private var isAtTop = true
     private var currentOffset = 0f
-    private val maxPull = 400f
-    private val triggerThreshold = 250f
+    private val maxPull = 150f
+    private val triggerThreshold = 100f
 
     @SuppressLint("NotifyDataSetChanged", "ClickableViewAccessibility")
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -137,6 +137,7 @@ class DataFragment : Fragment() {
             .addButton(DialogButton(
                 "DELETE",
                 onClick = {
+                    animatedItems.remove(ChatRepository.items[pos]) // ООП никого не щадит
                     ChatRepository.removeAt(pos, true)
                     chatsAdapter.notifyDataSetChanged()
                 }

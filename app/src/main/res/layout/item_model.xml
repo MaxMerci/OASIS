@@ -32,11 +32,10 @@
             android:id="@+id/modelExtra"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingLeft="12dp"
-            android:paddingRight="12dp"
-            android:paddingBottom="8dp"
-            android:textColor="@color/text"
-            android:textSize="13sp" />
+            android:visibility="gone"
+            android:paddingLeft="10dp"
+            android:paddingRight="10dp"
+            android:ellipsize="end"/>
     </LinearLayout>
 
     <ImageView
@@ -45,7 +44,6 @@
         android:layout_height="48dp"
         android:padding="12dp"
         android:src="@drawable/ic_arrow_down"
-        android:contentDescription="Toggle Details"
         android:background="?attr/selectableItemBackgroundBorderless"
         app:layout_constraintTop_toTopOf="@+id/textContainer"
         app:layout_constraintBottom_toBottomOf="@+id/modelId"
