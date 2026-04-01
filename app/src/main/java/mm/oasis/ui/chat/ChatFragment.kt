@@ -131,11 +131,9 @@ class ChatFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     fun updateMessages() {
-        requireActivity().runOnUiThread {
-            messagesAdapter.notifyDataSetChanged()
-            updateEmptyViewVisibility()
-            messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
-        }
+        messagesAdapter.notifyDataSetChanged()
+        updateEmptyViewVisibility()
+        messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -160,9 +158,8 @@ class ChatFragment : Fragment() {
             input.setGenerating(true)
 
             val currentChat = ChatRepository.currentChat
-            currentChat.messages += request.messages
 
-            currentChat.messages += Message(
+            currentChat.messages += request.messages + Message(
                 avatarUrl = ProfileRepository.currentProfile?.model?.avatarUrl,
                 role = Message.MessageRole.ASSISTANT,
                 content = MessageContent.Parts(
@@ -171,7 +168,6 @@ class ChatFragment : Fragment() {
                 reasoning = "",
                 name = request.model,
             )
-            updateMessages()
 
             updateMessages()
 
@@ -191,13 +187,16 @@ class ChatFragment : Fragment() {
                     }
                     message.reasoning = (message.reasoning ?: "") + flow.reasoning
 
-                    requireActivity().runOnUiThread { messagesAdapter.notifyDataSetChanged() }
+                    requireActivity().runOnUiThread {
+                        messagesAdapter.notifyItemChanged(currentChat.messages.size - 1)
+                    }
                 }
             } catch (e: Exception) {
                 Snackbar.make(requireView(), e.toString(), Snackbar.LENGTH_SHORT).show()
             } finally {
                 input.setGenerating(false)
                 ChatRepository.save()
+                updateMessages()
             }
         }
     }

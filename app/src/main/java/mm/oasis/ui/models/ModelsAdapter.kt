@@ -14,7 +14,6 @@ import androidx.recyclerview.widget.RecyclerView
 import mm.oasis.R
 import mm.oasis.serialization.dto.LLMRaw
 import mm.oasis.serialization.dto.LLMResponse
-import mm.oasis.ui.data.animatedItems
 
 class ModelsAdapter(private val onModelClick: (LLMRaw) -> Unit) : RecyclerView.Adapter<ModelsAdapter.ModelViewHolder>() {
     private var allModels: LLMResponse? = null
@@ -91,11 +90,11 @@ class ModelsAdapter(private val onModelClick: (LLMRaw) -> Unit) : RecyclerView.A
 
             itemView.apply {
                 alpha = 0f
-                scaleY = 0f
+                scaleX = 0f
 
                 animate()
                     .alpha(1f)
-                    .scaleY(1f)
+                    .scaleX(1f)
                     .setDuration(300L)
                     .setInterpolator(AccelerateDecelerateInterpolator())
                     .start()

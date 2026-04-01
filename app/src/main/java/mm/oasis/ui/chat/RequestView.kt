@@ -14,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import mm.oasis.R
+import mm.oasis.remote.Agent
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.ContentPart
 import mm.oasis.serialization.dto.Message
@@ -97,35 +98,42 @@ class RequestView @JvmOverloads constructor(
         reasoningNo.setOnClickListener { updateReasoningState(false) }
 
         send.setOnClickListener {
-            if (isGenerating) {
-                onSend?.invoke(Request())
+            if (Agent.isGenerating) {
+                onSend?.invoke(request)
                 return@setOnClickListener
             }
 
             val contentText = content.text.toString()
-            val maxTokentText = temperature.text.toString()
+            val temperature = this@RequestView.temperature.text.toString()
             val topPText = maxTokens.text.toString()
-            val attachments = attachmentsAdapter.getItems()
+            val attachments = attachmentsAdapter.getItems().toMutableList()
 
             if (contentText.isNotBlank() || attachments.isNotEmpty()) {
                 request.model = ProfileRepository.currentProfile?.model?.id ?: "MODEL NOT SELECTED"
                 request.includeReasoning = reasoningState
-                request.maxTokens = if (maxTokentText.isNotBlank()) maxTokentText.toInt() else null
+                request.maxTokens = if (temperature.isNotBlank()) temperature.toInt() else null
                 request.topP = if (topPText.isNotBlank()) topPText.toDouble() else null
 
                 val parts = mutableListOf<ContentPart>()
                 if (contentText.isNotBlank()) {
                     parts.add(ContentPart.TextPart(contentText))
                 }
+                for (part in attachments) {
+                    if (part is ContentPart.TextPart) {
+                        request.messages += Message(
+                            role = Message.MessageRole.SYSTEM,
+                            content = MessageContent.Parts(listOf(part))
+                        )
+                        attachments.remove(part)
+                    }
+                }
                 parts.addAll(attachments)
 
-                request.messages = listOf(
-                    Message(
-                        avatarUrl = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${ProfileRepository.currentProfile?.endPoint}",
-                        role = Message.MessageRole.USER,
-                        content = MessageContent.Parts(parts),
-                        name = ProfileRepository.currentProfile?.endpointDomain() ?: "YOU",
-                    )
+                request.messages += Message(
+                    avatarUrl = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${ProfileRepository.currentProfile?.endPoint}",
+                    role = Message.MessageRole.USER,
+                    content = MessageContent.Parts(parts),
+                    name = ProfileRepository.currentProfile?.endpointDomain() ?: "YOU",
                 )
                 onSend?.invoke(request)
                 clear()

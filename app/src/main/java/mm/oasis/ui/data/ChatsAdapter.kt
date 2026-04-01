@@ -51,11 +51,11 @@ class ChatsAdapter(
                     if (!animatedItems.contains(chat)) {
                         animatedItems.add(chat)
                         alpha = 0f
-                        scaleY = 0f
+                        scaleX = 0f
 
                         animate()
                             .alpha(1f)
-                            .scaleY(1f)
+                            .scaleX(1f)
                             .setDuration(250)
                             .setStartDelay((pos * 100L))
                             .start()

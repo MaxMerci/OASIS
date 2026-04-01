@@ -15,7 +15,6 @@ class ProfilesAdapter(
     private val onProfileClick: (Int) -> Unit,
     private val onLongClick: (Int) -> Unit
 ) : RecyclerView.Adapter<ProfilesAdapter.ProfileViewHolder>() {
-
     companion object {
         val animatedItems = mutableListOf<ProfileData>()
 
@@ -44,8 +43,7 @@ class ProfilesAdapter(
     }
 
     override fun onBindViewHolder(holder: ProfileViewHolder, position: Int) {
-        val profile = ProfileRepository.items[position]
-        holder.bind(profile)
+        holder.bind(position)
     }
 
     inner class ProfileViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -53,7 +51,7 @@ class ProfilesAdapter(
         private val currentModel: TextView? = itemView.findViewById(R.id.currentModel)
 
         @SuppressLint("SetTextI18n", "NotifyDataSetChanged")
-        fun bind(profile: ProfileData) {
+        fun bind(position: Int) {
             val viewType = itemViewType
 
             if (viewType == TYPE_ADD) {
@@ -62,6 +60,9 @@ class ProfilesAdapter(
                 }
                 itemView.setOnLongClickListener(null)
             } else {
+                val dataIndex = position - 1
+                val profile = ProfileRepository.items[dataIndex]
+
                 itemView.apply {
                     if (!animatedItems.contains(profile)) {
                         animatedItems.add(profile)
@@ -76,9 +77,6 @@ class ProfilesAdapter(
                             .start()
                     }
                 }
-
-                val dataIndex = position - 1
-                val profile = ProfileRepository.items[dataIndex]
 
                 endPoint?.text = profile.endPoint
                 currentModel?.text = profile.model?.id ?: "MODEL NOT SPECIFIED"

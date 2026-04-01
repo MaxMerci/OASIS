@@ -63,6 +63,7 @@ class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 })
                 .build()
         }
+
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             TYPE_USER -> UserViewHolder(inflater.inflate(R.layout.item_message_user, parent, false))
