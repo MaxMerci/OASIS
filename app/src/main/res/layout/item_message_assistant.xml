@@ -40,36 +40,18 @@
             android:textSize="12sp"/>
     </LinearLayout>
 
-    <FrameLayout
+    <TextView
         android:id="@+id/reasoning"
         android:layout_width="match_parent"
-        android:layout_margin="5dp"
         android:layout_height="wrap_content"
-        android:visibility="gone">
-
-        <TextView
-            android:id="@+id/reasoningCurrent"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:textColor="@color/hint"/>
-
-        <TextView
-            android:id="@+id/reasoningNext"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:alpha="0"
-            android:visibility="gone"
-            android:textColor="@color/hint"/>
-
-    </FrameLayout>
+        android:textSize="13sp"
+        android:visibility="gone"
+        android:textColor="@color/hint"/>
 
     <TextView
         android:id="@+id/content"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:alpha="0"
         android:maxWidth="280dp"
         android:paddingLeft="12dp"
         android:paddingTop="3dp"

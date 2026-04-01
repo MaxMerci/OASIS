@@ -188,7 +188,7 @@ class ChatFragment : Fragment() {
                     message.reasoning = (message.reasoning ?: "") + flow.reasoning
 
                     requireActivity().runOnUiThread {
-                        messagesAdapter.notifyItemChanged(currentChat.messages.size - 1)
+                        messagesAdapter.notifyDataSetChanged()
                     }
                 }
             } catch (e: Exception) {
