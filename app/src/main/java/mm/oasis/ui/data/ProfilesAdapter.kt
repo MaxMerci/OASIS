@@ -8,6 +8,8 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import mm.oasis.R
 import mm.oasis.repository.ProfileRepository
+import mm.oasis.serialization.storage.ChatData
+import mm.oasis.serialization.storage.ProfileData
 
 class ProfilesAdapter(
     private val onProfileClick: (Int) -> Unit,
@@ -15,6 +17,8 @@ class ProfilesAdapter(
 ) : RecyclerView.Adapter<ProfilesAdapter.ProfileViewHolder>() {
 
     companion object {
+        val animatedItems = mutableListOf<ProfileData>()
+
         const val TYPE_ADD = 2
         const val TYPE_SELECTED = 1
         const val TYPE_NORMAL = 0
@@ -40,7 +44,8 @@ class ProfilesAdapter(
     }
 
     override fun onBindViewHolder(holder: ProfileViewHolder, position: Int) {
-        holder.bind(position)
+        val profile = ProfileRepository.items[position]
+        holder.bind(profile)
     }
 
     inner class ProfileViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -48,7 +53,7 @@ class ProfilesAdapter(
         private val currentModel: TextView? = itemView.findViewById(R.id.currentModel)
 
         @SuppressLint("SetTextI18n", "NotifyDataSetChanged")
-        fun bind(position: Int) {
+        fun bind(profile: ProfileData) {
             val viewType = itemViewType
 
             if (viewType == TYPE_ADD) {
@@ -57,6 +62,21 @@ class ProfilesAdapter(
                 }
                 itemView.setOnLongClickListener(null)
             } else {
+                itemView.apply {
+                    if (!animatedItems.contains(profile)) {
+                        animatedItems.add(profile)
+                        alpha = 0f
+                        scaleY = 0f
+
+                        animate()
+                            .alpha(1f)
+                            .scaleY(1f)
+                            .setDuration(250)
+                            .setStartDelay((bindingAdapterPosition * 100L))
+                            .start()
+                    }
+                }
+
                 val dataIndex = position - 1
                 val profile = ProfileRepository.items[dataIndex]
 
@@ -67,10 +87,8 @@ class ProfilesAdapter(
                     onProfileClick(dataIndex)
                     notifyDataSetChanged()
                 }
-
                 itemView.setOnLongClickListener {
                     onLongClick(dataIndex)
-                    notifyDataSetChanged()
                     true
                 }
             }

@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import mm.oasis.R
 import mm.oasis.repository.ChatRepository
 import mm.oasis.repository.ProfileRepository
+import mm.oasis.repository.Repository
 import mm.oasis.serialization.storage.ProfileData
 import mm.oasis.ui.objects.DialogButton
 import mm.oasis.ui.objects.DialogField
@@ -34,7 +35,10 @@ class DataFragment : Fragment() {
     /* CHATS */
     private lateinit var chatsView: RecyclerView
     private lateinit var addChatHint: TextView
-    private val chatsAdapter = ChatsAdapter(::onChatClick, ::onLongChatClick)
+    private val chatsAdapter = ChatsAdapter(
+        ::onChatClick,
+        ::onLongChatClick
+    )
 
     /* ADD CHAT MECHANICS */
     private var startY = 0f
@@ -137,7 +141,7 @@ class DataFragment : Fragment() {
             .addButton(DialogButton(
                 "DELETE",
                 onClick = {
-                    animatedItems.remove(ChatRepository.items[pos]) // ООП никого не щадит
+                    ChatsAdapter.animatedItems.remove(ChatRepository.items[pos]) // ООП никого не щадит
                     ChatRepository.removeAt(pos, true)
                     chatsAdapter.notifyDataSetChanged()
                 }
@@ -170,15 +174,24 @@ class DataFragment : Fragment() {
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private fun onLongProfileClick(pos: Int) {
         val profile = ProfileRepository.items[pos]
         ModalDialogBuilder(requireContext())
             .addField(DialogField("endPoint", "ENDPOINT", FieldType.URL, true, profile.endPoint.ifEmpty { "https://api.example.ai/v1" }))
             .addField(DialogField("apiKey", "API KEY", FieldType.TEXT, true, profile.apiKey.ifEmpty { "sk-..." }))
-            .addButton(DialogButton("DELETE") { ProfileRepository.removeAt(pos) })
+            .addButton(
+                DialogButton("DELETE") {
+                    ProfilesAdapter.animatedItems.remove(ProfileRepository.items[pos])
+                    ProfileRepository.removeAt(pos)
+                    profilesAdapter.notifyDataSetChanged()
+                }
+            )
             .onOk { values ->
                 profile.endPoint = values["endPoint"] ?: profile.endPoint
                 profile.apiKey = values["apiKey"] ?: profile.apiKey
+                ProfileRepository.save()
+                profilesAdapter.notifyDataSetChanged()
             }
             .show()
     }
