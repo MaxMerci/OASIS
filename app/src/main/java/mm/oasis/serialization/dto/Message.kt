@@ -6,7 +6,8 @@ import kotlinx.serialization.Transient
 
 data class UiData(
     var lastReasoningIndex: Int = -1,
-    var isAnimating: Boolean = false
+    var isAnimating: Boolean = false,
+    var reasoningParagraph: String = ""
 )
 
 @Serializable

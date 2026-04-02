@@ -16,7 +16,7 @@ import mm.oasis.serialization.dto.Message
 
 class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
     companion object {
-        const val CHANGE_DURATION = 250L
+        const val CHANGE_DURATION = 500L
     }
 
     private val avatarView: ImageView = view.findViewById(R.id.avatar)
@@ -54,27 +54,17 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
         if (!reasoning.isNullOrBlank() && content.isBlank()) {
             if (!reasoningContainer.isVisible) reasoningContainer.visibility = VISIBLE
-
-            val parts = reasoning.split("\n\n").filter { it.isNotBlank() }
-
-            val targetIndex = when {
-                parts.size >= 2 -> parts.size - 2 // всега показываем готовый, предпоследний абзац
-                else -> 0
-            }
-            if (targetIndex != message.uiData.lastReasoningIndex) {
-                message.uiData.lastReasoningIndex = targetIndex
-                changeReasoningParagraph(message, parts[targetIndex].trim())
-            }
+            handleReasoningParagraph(message)
         } else if (content.isNotBlank()) {
             if (reasoningContainer.isVisible) reasoningContainer.visibility = GONE
-
             markwon?.setMarkdown(contentView, content)
         }
     }
 
-    private fun changeReasoningParagraph(message: Message, newText: String) {
+    private fun handleReasoningParagraph(message: Message) {
         if (message.uiData.isAnimating) return
         message.uiData.isAnimating = true
+        val newText = message.uiData.reasoningParagraph
 
         reasoningNext.apply {
             alpha = 0f
@@ -84,20 +74,17 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
         reasoningNext.animate()
             .alpha(1f)
-            .setDuration(CHANGE_DURATION)
+            .setDuration(CHANGE_DURATION + (CHANGE_DURATION/100))
             .withEndAction {
-                reasoningCurrent.animate().cancel()
-
                 reasoningNext.apply {
-                    alpha = 0f
                     visibility = GONE
+                    alpha = 0f
                     text = null
                 }
-
                 reasoningCurrent.apply {
                     alpha = 1f
-                    visibility = VISIBLE
                     text = newText
+                    visibility = VISIBLE
                 }
                 Thread.sleep(100L)
                 message.uiData.isAnimating = false

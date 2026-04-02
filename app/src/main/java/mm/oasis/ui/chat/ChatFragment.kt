@@ -195,9 +195,10 @@ class ChatFragment : Fragment() {
                         parts.size >= 2 -> parts.size - 2
                         else -> 0
                     }
+                    message.uiData.reasoningParagraph = parts[targetIndex]
                     val shouldUpdate =
                         if (message.display.isNotBlank()) true
-                        else !message.uiData.isAnimating && targetIndex != message.uiData.lastReasoningIndex
+                        else !message.uiData.isAnimating && (targetIndex != message.uiData.lastReasoningIndex || targetIndex == 0)
                     if (shouldUpdate) {
                         requireActivity().runOnUiThread {
                             messagesAdapter.notifyItemChanged(messagesAdapter.itemCount - 1)
