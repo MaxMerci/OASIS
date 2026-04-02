@@ -131,9 +131,11 @@ class ChatFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     fun updateMessages() {
-        messagesAdapter.notifyDataSetChanged()
-        updateEmptyViewVisibility()
-        messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
+        requireActivity().runOnUiThread {
+            messagesAdapter.notifyDataSetChanged()
+            updateEmptyViewVisibility()
+            messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
+        }
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -187,8 +189,19 @@ class ChatFragment : Fragment() {
                     }
                     message.reasoning = (message.reasoning ?: "") + flow.reasoning
 
-                    requireActivity().runOnUiThread {
-                        messagesAdapter.notifyDataSetChanged()
+                    // знаете, что такое ОТЧАЙНИЕ? А я поделюсь с вами...
+                    val parts = message.reasoning?.split("\n\n")?.filter { it.isNotBlank() } ?: listOf()
+                    val targetIndex = when {
+                        parts.size >= 2 -> parts.size - 2
+                        else -> 0
+                    }
+                    val shouldUpdate =
+                        if (message.display.isNotBlank()) true
+                        else !message.uiData.isAnimating && targetIndex != message.uiData.lastReasoningIndex
+                    if (shouldUpdate) {
+                        requireActivity().runOnUiThread {
+                            messagesAdapter.notifyItemChanged(messagesAdapter.itemCount - 1)
+                        }
                     }
                 }
             } catch (e: Exception) {
