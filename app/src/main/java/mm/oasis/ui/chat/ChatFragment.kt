@@ -12,6 +12,7 @@ import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +55,8 @@ class ChatFragment : Fragment() {
 
         messagesList = view.findViewById(R.id.messagesList)
         messagesList.adapter = messagesAdapter
+
+        (messagesList.itemAnimator as? DefaultItemAnimator)?.supportsChangeAnimations = false  // это был ключ к решению всех моих проблем, просто памятка
 
         input.onSend = { r -> requireActivity().runOnUiThread { sendMessage(r) } }
         input.onAddAttachment = {
@@ -174,6 +177,7 @@ class ChatFragment : Fragment() {
             updateMessages()
 
             try {
+                var lastReasoningIndex = 0
                 Agent.use(request).collect { flow ->
                     val message = currentChat.messages.last()
                     val currentContent = message.content
@@ -198,14 +202,14 @@ class ChatFragment : Fragment() {
                     message.uiData.reasoningParagraph = parts[targetIndex]
                     val shouldUpdate =
                         if (message.display.isNotBlank()) true
-                        else !message.uiData.isAnimating && (targetIndex != message.uiData.lastReasoningIndex || targetIndex == 0)
+                        else !message.uiData.isAnimating && (targetIndex == 0 || targetIndex != lastReasoningIndex)
                     if (shouldUpdate) {
-                        requireActivity().runOnUiThread {
-                            messagesAdapter.notifyItemChanged(messagesAdapter.itemCount - 1)
-                        }
+                        lastReasoningIndex = targetIndex
+                        messagesAdapter.notifyItemChanged(messagesAdapter.itemCount - 1)
                     }
                 }
             } catch (e: Exception) {
+                Agent.isGenerating = false
                 Snackbar.make(requireView(), e.toString(), Snackbar.LENGTH_SHORT).show()
             } finally {
                 input.setGenerating(false)

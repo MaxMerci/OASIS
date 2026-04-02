@@ -44,7 +44,9 @@
         android:id="@+id/reasoning"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="15dp">
+        android:alpha="0"
+        android:visibility="gone"
+        android:layout_margin="8dp">
         <TextView
             android:id="@+id/reasoningCurrent"
             android:layout_width="match_parent"
@@ -68,6 +70,8 @@
         android:maxWidth="280dp"
         android:paddingLeft="12dp"
         android:paddingTop="3dp"
+        android:alpha="0"
+        android:visibility="gone"
         android:paddingRight="12dp"
         android:paddingBottom="12dp"
         android:textColor="@color/text"

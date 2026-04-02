@@ -1,11 +1,14 @@
 package mm.oasis.ui.chat.message
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.view.View
 import android.view.View.*
+import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.animation.*
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -35,9 +38,43 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         }
     }
 
+    private fun expand(view: View) {
+        view.alpha = 0f
+        view.visibility = VISIBLE
+        view.animate()
+            .alpha(1f)
+            .setDuration(250)
+            .start()
+    }
+
+    private fun collapse(view: View) {
+        val initialHeight = view.measuredHeight
+
+        val animator = ValueAnimator.ofInt(initialHeight, 0)
+        animator.duration = CHANGE_DURATION
+        animator.interpolator = DecelerateInterpolator()
+
+        animator.addUpdateListener {
+            val value = it.animatedValue as Int
+            view.layoutParams.height = value
+            view.requestLayout()
+        }
+
+        view.animate()
+            .alpha(0f)
+            .setDuration(CHANGE_DURATION)
+            .withEndAction {
+                view.visibility = GONE
+            }
+            .start()
+
+        animator.start()
+    }
+
     @SuppressLint("SetTextI18n")
-    fun bind(message: Message, markwon: Markwon?) {val newUrl = message.avatarUrl
+    fun bind(message: Message, markwon: Markwon?) {
         /* SET BASE FIELDS */
+        val newUrl = message.avatarUrl
         if ((avatarView.tag as? String) != newUrl) {
             avatarView.tag = newUrl
             Glide.with(itemView.context)
@@ -53,10 +90,14 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val reasoning = message.reasoning
 
         if (!reasoning.isNullOrBlank() && content.isBlank()) {
-            if (!reasoningContainer.isVisible) reasoningContainer.visibility = VISIBLE
+            if (!reasoningContainer.isVisible) expand(reasoningContainer)
             handleReasoningParagraph(message)
         } else if (content.isNotBlank()) {
-            if (reasoningContainer.isVisible) reasoningContainer.visibility = GONE
+            if (reasoningContainer.alpha == 1f) collapse(reasoningContainer)
+            if (!contentView.isVisible) contentView.apply {
+                visibility = VISIBLE
+                animate().alpha(1f).setDuration(CHANGE_DURATION).start()
+            }
             markwon?.setMarkdown(contentView, content)
         }
     }
@@ -74,8 +115,9 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
         reasoningNext.animate()
             .alpha(1f)
-            .setDuration(CHANGE_DURATION + (CHANGE_DURATION/100))
+            .setDuration(CHANGE_DURATION)
             .withEndAction {
+                reasoningCurrent.animate().cancel()
                 reasoningNext.apply {
                     visibility = GONE
                     alpha = 0f
@@ -86,7 +128,6 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
                     text = newText
                     visibility = VISIBLE
                 }
-                Thread.sleep(100L)
                 message.uiData.isAnimating = false
             }
             .start()

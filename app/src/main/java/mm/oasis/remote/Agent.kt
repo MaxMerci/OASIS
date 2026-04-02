@@ -103,16 +103,17 @@ object Agent {
                 }
             }
 
-            send(
-                ResponseFlow(
-                    acc.toolCalls.joinToString("\n") { "`use " + it.functionName + "`" } + "\n",
-                    ""
-                )
-            )
+//            send(
+//                ResponseFlow(
+//                    acc.toolCalls.joinToString("\n") { "`use " + it.functionName + "`" } + "\n",
+//                    ""
+//                )
+//            )
 
             count++
         } while (count < MAX_ITER)
 
         isGenerating = false
+        // isGenerating дополнительно выключается в ChatFragment, ибо там находится обработчик ошибкок
     }
 }
