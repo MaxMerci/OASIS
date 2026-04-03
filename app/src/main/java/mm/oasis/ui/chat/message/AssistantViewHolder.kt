@@ -8,7 +8,6 @@ import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
-import androidx.core.animation.*
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -91,7 +90,16 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
         if (!reasoning.isNullOrBlank() && content.isBlank()) {
             if (!reasoningContainer.isVisible) expand(reasoningContainer)
-            handleReasoningParagraph(message)
+
+            val parts = message.reasoning?.split("\n\n")?.filter { it.isNotBlank() } ?: listOf()
+            val targetIndex = when {
+                parts.size >= 2 -> parts.size - 2
+                else -> 0
+            }
+            val newText = parts[targetIndex].trim()
+            if (reasoningCurrent.text != newText) {
+                changeReasoningParagraph(newText)
+            }
         } else if (content.isNotBlank()) {
             if (reasoningContainer.alpha == 1f) collapse(reasoningContainer)
             if (!contentView.isVisible) contentView.apply {
@@ -102,10 +110,8 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         }
     }
 
-    private fun handleReasoningParagraph(message: Message) {
-        if (message.uiData.isAnimating) return
-        message.uiData.isAnimating = true
-        val newText = message.uiData.reasoningParagraph
+    private fun changeReasoningParagraph(newText: String) {
+        if (reasoningNext.isVisible) return
 
         reasoningNext.apply {
             alpha = 0f
@@ -128,7 +134,6 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
                     text = newText
                     visibility = VISIBLE
                 }
-                message.uiData.isAnimating = false
             }
             .start()
 

@@ -12,6 +12,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import mm.oasis.R
 import mm.oasis.remote.Agent
@@ -33,23 +34,24 @@ class RequestView @JvmOverloads constructor(
     var request = Request()
     var onSend: ((Request) -> Unit)? = null
     var onAddAttachment: (() -> Unit)? = null
-
     /* VALUES */
     private val content: EditText
     private val settingsContainer: View
     private val send: ImageButton
     private val addAttachment: ImageButton
-    
+    /* REASONING */
     private val reasoningYes: TextView
     private val reasoningAuto: TextView
     private val reasoningNo: TextView
     private var reasoningState: Boolean? = null // null = AUTO, true = YES, false = NO
-
+    /* OTHER */
     private val temperature: EditText
     private val maxTokens: EditText
     private val attachmentsList: RecyclerView
     private val attachmentsAdapter: AttachmentsAdapter
-
+    /* TOOLS */
+    private val toolsAdapter: ToolsListAdapter
+    private val toolsList: RecyclerView
     /* ANIM */
     private var fullSettingsHeight = 0
     private var initialY = 0f
@@ -60,7 +62,7 @@ class RequestView @JvmOverloads constructor(
 
     init {
         orientation = VERTICAL
-        LayoutInflater.from(context).inflate(R.layout.request_field, this, true)
+        LayoutInflater.from(context).inflate(R.layout.request_fields, this, true)
 
         content = findViewById(R.id.contentInput)
         send = findViewById(R.id.sendButton)
@@ -87,65 +89,74 @@ class RequestView @JvmOverloads constructor(
         )
         fullSettingsHeight = settingsContainer.measuredHeight
 
+        toolsList = findViewById(R.id.toolsList)
+        toolsAdapter = ToolsListAdapter()
+        toolsList.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+        toolsList.adapter = toolsAdapter
+
         updateSettingsHeight(0)
 
         addAttachment.setOnClickListener {
             onAddAttachment?.invoke()
         }
 
+        updateReasoningState(reasoningState)
         reasoningYes.setOnClickListener { updateReasoningState(true) }
         reasoningAuto.setOnClickListener { updateReasoningState(null) }
         reasoningNo.setOnClickListener { updateReasoningState(false) }
 
-        send.setOnClickListener {
-            if (Agent.isGenerating) {
-                onSend?.invoke(request)
-                return@setOnClickListener
+        send.setOnClickListener { onClickSend() }
+    }
+
+    private fun onClickSend() {
+        if (Agent.isGenerating) {
+            onSend?.invoke(request)
+            return
+        }
+
+        val contentText = content.text.toString()
+        val temperature = this@RequestView.temperature.text.toString()
+        val topPText = maxTokens.text.toString()
+        val attachments = attachmentsAdapter.getItems().toMutableList()
+
+        if (contentText.isNotBlank() || attachments.isNotEmpty()) {
+            request.model = ProfileRepository.currentProfile?.model?.id ?: "MODEL NOT SELECTED"
+            request.includeReasoning = reasoningState
+            request.maxTokens = if (temperature.isNotBlank()) temperature.toInt() else null
+            request.topP = if (topPText.isNotBlank()) topPText.toDouble() else null
+            request.tools = toolsAdapter.enabledTools
+
+            val parts = mutableListOf<ContentPart>()
+            if (contentText.isNotBlank()) {
+                parts.add(ContentPart.TextPart(contentText))
             }
-
-            val contentText = content.text.toString()
-            val temperature = this@RequestView.temperature.text.toString()
-            val topPText = maxTokens.text.toString()
-            val attachments = attachmentsAdapter.getItems().toMutableList()
-
-            if (contentText.isNotBlank() || attachments.isNotEmpty()) {
-                request.model = ProfileRepository.currentProfile?.model?.id ?: "MODEL NOT SELECTED"
-                request.includeReasoning = reasoningState
-                request.maxTokens = if (temperature.isNotBlank()) temperature.toInt() else null
-                request.topP = if (topPText.isNotBlank()) topPText.toDouble() else null
-
-                val parts = mutableListOf<ContentPart>()
-                if (contentText.isNotBlank()) {
-                    parts.add(ContentPart.TextPart(contentText))
+            for (part in attachments) {
+                if (part is ContentPart.TextPart) {
+                    request.messages += Message(
+                        role = Message.MessageRole.SYSTEM,
+                        content = MessageContent.Parts(listOf(part))
+                    )
+                    attachments.remove(part)
                 }
-                for (part in attachments) {
-                    if (part is ContentPart.TextPart) {
-                        request.messages += Message(
-                            role = Message.MessageRole.SYSTEM,
-                            content = MessageContent.Parts(listOf(part))
-                        )
-                        attachments.remove(part)
-                    }
-                }
-                parts.addAll(attachments)
-
-                request.messages += Message(
-                    avatarUrl = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${ProfileRepository.currentProfile?.endPoint}",
-                    role = Message.MessageRole.USER,
-                    content = MessageContent.Parts(parts),
-                    name = ProfileRepository.currentProfile?.endpointDomain() ?: "YOU",
-                )
-                onSend?.invoke(request)
-                clear()
             }
+            parts.addAll(attachments)
+
+            request.messages += Message(
+                avatarUrl = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${ProfileRepository.currentProfile?.endPoint}",
+                role = Message.MessageRole.USER,
+                content = MessageContent.Parts(parts),
+                name = ProfileRepository.currentProfile?.endpointDomain() ?: "YOU",
+            )
+            onSend?.invoke(request)
+            clear()
         }
     }
 
     private fun updateReasoningState(state: Boolean?) {
         reasoningState = state
-        reasoningYes.setBackgroundResource(if (state == true) R.drawable.ic_bg_g else R.drawable.ic_bg_b)
-        reasoningAuto.setBackgroundResource(if (state == null) R.drawable.ic_bg_g else R.drawable.ic_bg_b)
-        reasoningNo.setBackgroundResource(if (state == false) R.drawable.ic_bg_g else R.drawable.ic_bg_b)
+        reasoningYes.setBackgroundResource(if (state == true) R.drawable.ic_bg_g_r else android.R.color.transparent)
+        reasoningAuto.setBackgroundResource(if (state == null) R.drawable.ic_bg_g_r else android.R.color.transparent)
+        reasoningNo.setBackgroundResource(if (state == false) R.drawable.ic_bg_g_r else android.R.color.transparent)
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {

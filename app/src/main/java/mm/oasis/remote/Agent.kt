@@ -64,56 +64,55 @@ object Agent {
     }
 
     fun use(req: Request): Flow<ResponseFlow> = channelFlow {
-        isGenerating = true
-
-        var count = 0
-
-        val messages = req.messages.map { it.copy() }.toMutableList()
-
-        //ToolRegistry.register(testTool)
-        //req.tools = ToolRegistry.tools
-
-        do {
-            val acc = Accumulator()
-            req.messages = messages
-            ApiClient.generateStream(req).collect { chunk ->
-                val c = chunk.choices[0].delta.content ?: ""
-                val r = chunk.choices[0].delta.reasoning ?: ""
-
-                acc.content += c
-                acc.reasoning += r
-                chunk.choices[0].delta.toolCalls?.forEach { acc.appendToolCalls(it) }
-
-                send(ResponseFlow(c, r))
-            }
-            if (acc.toolCalls.isEmpty() || !isGenerating) break
-
-            messages.add(acc.toMessage())
-
-            acc.toolCalls.forEach {
-                val tool = ToolRegistry.getTool(it.functionName)
-                if (tool != null) {
-                    messages.add(
-                        Message(
-                            Message.MessageRole.TOOL,
-                            MessageContent.Text(tool.execute(it.arguments).toString()),
-                            toolCallId = it.id
-                        )
-                    )
-                }
-            }
-
-//            send(
-//                ResponseFlow(
-//                    acc.toolCalls.joinToString("\n") { "`use " + it.functionName + "`" } + "\n",
-//                    ""
-//                )
-//            )
-
-            count++
-        } while (count < MAX_ITER)
-
-        isGenerating = false
-        // isGenerating дополнительно выключается в ChatFragment, ибо там находится обработчик ошибкок
+        println(req)
     }
+//        isGenerating = true
+//
+//        var count = 0
+//
+//        val messages = req.messages.map { it.copy() }.toMutableList()
+//
+//        do {
+//            val acc = Accumulator()
+//            req.messages = messages
+//            ApiClient.generateStream(req).collect { chunk ->
+//                val c = chunk.choices[0].delta.content ?: ""
+//                val r = chunk.choices[0].delta.reasoning ?: ""
+//
+//                acc.content += c
+//                acc.reasoning += r
+//                chunk.choices[0].delta.toolCalls?.forEach { acc.appendToolCalls(it) }
+//
+//                send(ResponseFlow(c, r))
+//            }
+//            if (acc.toolCalls.isEmpty() || !isGenerating) break
+//
+//            messages.add(acc.toMessage())
+//
+//            acc.toolCalls.forEach {
+//                val tool = ToolRegistry.getTool(it.functionName)
+//                if (tool != null) {
+//                    messages.add(
+//                        Message(
+//                            Message.MessageRole.TOOL,
+//                            MessageContent.Text(tool.execute(it.arguments).toString()),
+//                            toolCallId = it.id
+//                        )
+//                    )
+//                }
+//            }
+//
+////            send(
+////                ResponseFlow(
+////                    acc.toolCalls.joinToString("\n") { "`use " + it.functionName + "`" } + "\n",
+////                    ""
+////                )
+////            )
+//
+//            count++
+//        } while (count < MAX_ITER)
+//
+//        isGenerating = false
+//        // isGenerating дополнительно выключается в ChatFragment, ибо там находится обработчик ошибкок
+//    }
 }

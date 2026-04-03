@@ -129,8 +129,12 @@ class DataFragment : Fragment() {
         return view
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private fun onChatClick(pos: Int) {
-        ChatRepository.updateIndex(pos)
+        if (pos != ChatRepository.currentIndex) {
+            ChatRepository.updateIndex(pos)
+            chatsAdapter.notifyItemChanged(pos)
+        }
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -156,6 +160,7 @@ class DataFragment : Fragment() {
             .show()
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private fun onProfileClick(pos: Int) {
         if (pos == -1) {
             ModalDialogBuilder(requireContext())
@@ -167,10 +172,12 @@ class DataFragment : Fragment() {
                         apiKey = values["apiKey"] ?: ""
                     )
                     ProfileRepository.addAt(0, newProfile)
+                    profilesAdapter.notifyDataSetChanged()
                 }
                 .show()
         } else {
             ProfileRepository.updateIndex(pos)
+            profilesAdapter.notifyDataSetChanged()
         }
     }
 

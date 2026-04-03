@@ -1,6 +1,7 @@
 package mm.oasis
 
 import android.content.Context
+import mm.oasis.remote.registerTools
 
 object Oasis {
     lateinit var applicationContext: Context
@@ -8,5 +9,6 @@ object Oasis {
 
     fun init(context: Context) {
         applicationContext = context.applicationContext
+        registerTools()
     }
 }

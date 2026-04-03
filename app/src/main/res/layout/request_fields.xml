@@ -83,7 +83,8 @@
                 android:layout_width="0dp"
                 android:layout_height="30dp"
                 android:layout_weight="1"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:background="@drawable/ic_bg_b_r" >
 
                 <TextView
                     android:id="@+id/reasoningYes"
@@ -93,8 +94,7 @@
                     android:gravity="center"
                     android:text="YES"
                     android:textColor="@color/text"
-                    android:textSize="12sp"
-                    android:background="@drawable/ic_bg_b" />
+                    android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/reasoningAuto"
@@ -104,8 +104,7 @@
                     android:gravity="center"
                     android:text="AUTO"
                     android:textColor="@color/text"
-                    android:textSize="12sp"
-                    android:background="@drawable/ic_bg_g" />
+                    android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/reasoningNo"
@@ -115,8 +114,7 @@
                     android:gravity="center"
                     android:text="NO"
                     android:textColor="@color/text"
-                    android:textSize="12sp"
-                    android:background="@drawable/ic_bg_b" />
+                    android:textSize="12sp" />
             </LinearLayout>
         </LinearLayout>
 
@@ -159,5 +157,21 @@
             android:hint="input..."
             android:inputType="numberDecimal"
             android:background="@null" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="10dp"
+            android:text="TOOLS"
+            android:textColor="@color/text"
+            android:textSize="13sp" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/toolsList"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:padding="6dp"
+            android:clipToPadding="false"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            android:orientation="horizontal" />
     </LinearLayout>
 </merge>

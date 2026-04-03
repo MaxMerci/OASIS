@@ -177,7 +177,6 @@ class ChatFragment : Fragment() {
             updateMessages()
 
             try {
-                var lastReasoningIndex = 0
                 Agent.use(request).collect { flow ->
                     val message = currentChat.messages.last()
                     val currentContent = message.content
@@ -193,18 +192,7 @@ class ChatFragment : Fragment() {
                     }
                     message.reasoning = (message.reasoning ?: "") + flow.reasoning
 
-                    // знаете, что такое ОТЧАЙНИЕ? А я поделюсь с вами...
-                    val parts = message.reasoning?.split("\n\n")?.filter { it.isNotBlank() } ?: listOf()
-                    val targetIndex = when {
-                        parts.size >= 2 -> parts.size - 2
-                        else -> 0
-                    }
-                    message.uiData.reasoningParagraph = parts[targetIndex]
-                    val shouldUpdate =
-                        if (message.display.isNotBlank()) true
-                        else !message.uiData.isAnimating && (targetIndex == 0 || targetIndex != lastReasoningIndex)
-                    if (shouldUpdate) {
-                        lastReasoningIndex = targetIndex
+                    requireActivity().runOnUiThread {
                         messagesAdapter.notifyItemChanged(messagesAdapter.itemCount - 1)
                     }
                 }

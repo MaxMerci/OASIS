@@ -35,10 +35,12 @@ class ProfilesAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ProfileViewHolder {
         val layout = when (viewType) {
             TYPE_ADD -> R.layout.item_profile_add
-            TYPE_SELECTED -> R.layout.item_profile_c
             else -> R.layout.item_profile
         }
         val view = LayoutInflater.from(parent.context).inflate(layout, parent, false)
+        if (viewType == TYPE_SELECTED) {
+            view.setBackgroundResource(R.drawable.ic_bg_g)
+        }
         return ProfileViewHolder(view)
     }
 
@@ -83,7 +85,10 @@ class ProfilesAdapter(
 
                 itemView.setOnClickListener {
                     onProfileClick(dataIndex)
-                    notifyDataSetChanged()
+                    when (viewType) {
+                        TYPE_SELECTED -> itemView.setBackgroundResource(R.drawable.ic_bg_b)
+                        TYPE_NORMAL -> itemView.setBackgroundResource(R.drawable.ic_bg_g)
+                    }
                 }
                 itemView.setOnLongClickListener {
                     onLongClick(dataIndex)

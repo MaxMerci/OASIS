@@ -19,23 +19,33 @@ class ChatsAdapter(
 ) : RecyclerView.Adapter<ChatsAdapter.ChatViewHolder>() {
     companion object {
         val animatedItems = mutableSetOf<ChatData>()
+        const val TYPE_NORMAL = 0
+        const val TYPE_SELECTED = 1
     }
 
     override fun getItemCount() = ChatRepository.items.size
 
     override fun getItemViewType(position: Int): Int {
-        return if (ChatRepository.currentIndex == position) 1 else 0
+        return if (ChatRepository.currentIndex == position) TYPE_SELECTED else TYPE_NORMAL
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
-        val layout = if (viewType == 0) R.layout.item_chat else R.layout.item_chat_c
-        val view = LayoutInflater.from(parent.context).inflate(layout, parent, false)
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_chat, parent, false)
+        if (viewType == TYPE_SELECTED) {
+            view.setBackgroundResource(R.drawable.ic_bg_g)
+        }
         return ChatViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
         val chat = ChatRepository.items[position]
+
         holder.bind(chat)
+
+        when (getItemViewType(position)) {
+            TYPE_SELECTED -> holder.itemView.setBackgroundResource(R.drawable.ic_bg_g)
+            TYPE_NORMAL -> holder.itemView.setBackgroundResource(R.drawable.ic_bg_b)
+        }
     }
 
     inner class ChatViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -64,7 +74,6 @@ class ChatsAdapter(
 
                 itemView.setOnClickListener {
                     onItemClick(pos)
-                    notifyDataSetChanged()
                 }
                 itemView.setOnLongClickListener {
                     onLongItemClick(pos)
