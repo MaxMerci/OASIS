@@ -1,8 +1,16 @@
 package mm.oasis.ui.chat
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
+import android.annotation.SuppressLint
 import android.util.TypedValue
 import android.view.LayoutInflater
+import android.view.View
+import android.view.View.GONE
 import android.view.ViewGroup
+import android.view.animation.DecelerateInterpolator
 import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.RecyclerView
 import io.noties.markwon.AbstractMarkwonPlugin
@@ -26,6 +34,8 @@ class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private const val TYPE_ASSISTANT = 1
         private const val TYPE_SYSTEM = 2
     }
+
+    private var lastAnimatedPos = -1
 
     override fun getItemCount() = ChatRepository.currentChat.messages.size
 
@@ -65,13 +75,16 @@ class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         }
 
         val inflater = LayoutInflater.from(parent.context)
-        return when (viewType) {
+        val holder =  when (viewType) {
             TYPE_USER -> UserViewHolder(inflater.inflate(R.layout.item_message_user, parent, false))
             TYPE_ASSISTANT -> AssistantViewHolder(inflater.inflate(R.layout.item_message_assistant, parent, false))
             else -> SystemViewHolder(inflater.inflate(R.layout.item_message_system, parent, false))
         }
+        holder.itemView.visibility = GONE
+        return holder
     }
 
+    @SuppressLint("RecyclerView")
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val message = ChatRepository.currentChat.messages[position]
         when (holder) {
@@ -79,5 +92,50 @@ class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             is AssistantViewHolder -> holder.bind(message, markwon)
             is SystemViewHolder -> holder.bind(message, markwon)
         }
+
+        if (position > lastAnimatedPos) {
+            holder.itemView.post {
+                expand(holder.itemView)
+            }
+            lastAnimatedPos = position
+        }
+    }
+
+    private fun expand(view: View) {
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec((view.parent as View).width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+
+        val targetHeight = view.measuredHeight
+
+        view.layoutParams.height = 0
+        view.alpha = 0f
+        view.requestLayout()
+        view.visibility = View.VISIBLE
+
+        val animator = ValueAnimator.ofInt(0, targetHeight)
+        animator.duration = 500L
+        animator.interpolator = DecelerateInterpolator()
+
+        animator.addUpdateListener {
+            val value = it.animatedValue as Int
+            view.layoutParams.height = value
+            view.requestLayout()
+        }
+
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                view.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+                view.requestLayout()
+            }
+        })
+
+        view.animate()
+            .alpha(1f)
+            .setDuration(500L)
+            .start()
+
+        animator.start()
     }
 }

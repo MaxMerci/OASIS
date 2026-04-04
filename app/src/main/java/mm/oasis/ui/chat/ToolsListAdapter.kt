@@ -31,6 +31,7 @@ class ToolsListAdapter : RecyclerView.Adapter<ToolsListAdapter.ToolViewHolder>()
         val tool = ToolRegistry.tools[position]
 
         holder.name.text = tool.function.name
+            .replace("_", " ")
 
         if (getItemViewType(position) == 1) holder.itemView.setBackgroundResource(R.drawable.ic_bg_g_r)
         else holder.itemView.setBackgroundResource(R.drawable.ic_bg_b_r)

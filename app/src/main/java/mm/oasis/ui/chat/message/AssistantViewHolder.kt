@@ -29,6 +29,8 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
     private val reasoningNext: TextView = view.findViewById(R.id.reasoningNext)
     private val reasoningContainer: FrameLayout = view.findViewById(R.id.reasoning)
 
+    private val toolsUse: TextView = view.findViewById(R.id.toolsUse)
+
     fun latexFix(text: String): String {
         val regex = Regex("""(?<!\\)\$((?:[^$]|\\\$)+?)(?<!\\)\$""")
         return regex.replace(text) {
@@ -42,7 +44,7 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         view.visibility = VISIBLE
         view.animate()
             .alpha(1f)
-            .setDuration(250)
+            .setDuration(CHANGE_DURATION)
             .start()
     }
 
@@ -98,48 +100,79 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             }
             val newText = parts[targetIndex].trim()
             if (reasoningCurrent.text != newText) {
-                changeReasoningParagraph(newText)
+                reasoningContainer.post {
+                    changeReasoningParagraph(newText)
+                }
             }
         } else if (content.isNotBlank()) {
             if (reasoningContainer.alpha == 1f) collapse(reasoningContainer)
-            if (!contentView.isVisible) contentView.apply {
-                visibility = VISIBLE
-                animate().alpha(1f).setDuration(CHANGE_DURATION).start()
-            }
+            if (!contentView.isVisible) expand(contentView)
             markwon?.setMarkdown(contentView, content)
+        }
+
+        if (!message.toolCalls.isNullOrEmpty()) {
+            if (!toolsUse.isVisible) expand(toolsUse)
+            toolsUse.text = message.toolCalls!!.joinToString("\n") {
+                "use " + (it.function?.name ?: "U") + " " + it.function?.arguments
+            } + "\n"
         }
     }
 
     private fun changeReasoningParagraph(newText: String) {
         if (reasoningNext.isVisible) return
+        if (reasoningCurrent.text?.toString() == newText) return
+
+        reasoningNext.text = newText
+
+        val wSpec = MeasureSpec.makeMeasureSpec(
+            reasoningContainer.measuredWidth,
+            MeasureSpec.EXACTLY
+        )
+        val hSpec = MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        reasoningNext.measure(wSpec, hSpec)
+
+        val nHeight = reasoningNext.measuredHeight
+        val oHeight = reasoningContainer.measuredHeight
 
         reasoningNext.apply {
             alpha = 0f
             visibility = VISIBLE
-            text = newText
         }
 
-        reasoningNext.animate()
-            .alpha(1f)
-            .setDuration(CHANGE_DURATION)
-            .withEndAction {
-                reasoningCurrent.animate().cancel()
-                reasoningNext.apply {
-                    visibility = GONE
-                    alpha = 0f
-                    text = null
-                }
-                reasoningCurrent.apply {
-                    alpha = 1f
-                    text = newText
-                    visibility = VISIBLE
-                }
-            }
-            .start()
+        val hAnimator = ValueAnimator.ofInt(oHeight, nHeight)
+        hAnimator.duration = CHANGE_DURATION
+        hAnimator.interpolator = DecelerateInterpolator()
+        hAnimator.addUpdateListener {
+            val value = it.animatedValue as Int
+            reasoningContainer.layoutParams.height = value
+            reasoningContainer.requestLayout()
+        }
 
         reasoningCurrent.animate()
             .alpha(0f)
             .setDuration(CHANGE_DURATION)
             .start()
+
+        reasoningNext.animate()
+            .alpha(1f)
+            .setDuration(CHANGE_DURATION)
+            .withEndAction {
+                reasoningCurrent.apply {
+                    alpha = 1f
+                    text = newText
+                    visibility = VISIBLE
+                }
+                reasoningNext.apply {
+                    visibility = GONE
+                    alpha = 0f
+                    text = null
+                }
+
+                reasoningContainer.layoutParams.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                reasoningContainer.requestLayout()
+            }
+            .start()
+
+        hAnimator.start()
     }
 }

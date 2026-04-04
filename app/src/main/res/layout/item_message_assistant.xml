@@ -64,16 +64,25 @@
     </FrameLayout>
 
     <TextView
+        android:id="@+id/toolsUse"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:layout_marginLeft="15dp"
+        android:visibility="gone"
+        android:textColor="@color/hint"/>
+
+    <TextView
         android:id="@+id/content"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:maxWidth="280dp"
         android:paddingLeft="12dp"
         android:paddingTop="3dp"
-        android:alpha="0"
-        android:visibility="gone"
         android:paddingRight="12dp"
         android:paddingBottom="12dp"
+        android:alpha="0"
+        android:visibility="gone"
         android:textColor="@color/text"
         android:textSize="16sp"
         android:textIsSelectable="true"/>

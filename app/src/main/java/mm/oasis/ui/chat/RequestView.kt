@@ -14,8 +14,13 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import mm.oasis.R
 import mm.oasis.remote.Agent
+import mm.oasis.remote.tools.WebSearch
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.ContentPart
 import mm.oasis.serialization.dto.Message

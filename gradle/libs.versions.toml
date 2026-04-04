@@ -1,5 +1,6 @@
 [versions]
 agp = "9.1.0"
+jsoup = "1.22.1"
 kotlin = "2.3.10"
 coreKtx = "1.18.0"
 coreSplashscreen = "1.2.0"
@@ -27,6 +28,7 @@ androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "androidx-activity-compose" }
 com-tbuonomo = { module = "com.tbuonomo:dotsindicator", version.ref = "dotsindicator" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
+jsoup = { module = "org.jsoup:jsoup", version.ref = "jsoup" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }

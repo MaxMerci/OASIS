@@ -69,6 +69,9 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
 
+    // Parse
+    implementation(libs.jsoup)
+
     // Markdown
     implementation(libs.markwon.core)
     implementation(libs.markwon.ext.tables)

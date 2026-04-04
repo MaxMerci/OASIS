@@ -29,6 +29,7 @@ import mm.oasis.serialization.dto.InputAudio
 import mm.oasis.serialization.dto.Message
 import mm.oasis.serialization.dto.MessageContent
 import mm.oasis.serialization.dto.Request
+import mm.oasis.serialization.dto.ToolCall
 
 class ChatFragment : Fragment() {
 
@@ -55,7 +56,6 @@ class ChatFragment : Fragment() {
 
         messagesList = view.findViewById(R.id.messagesList)
         messagesList.adapter = messagesAdapter
-
         (messagesList.itemAnimator as? DefaultItemAnimator)?.supportsChangeAnimations = false  // это был ключ к решению всех моих проблем, просто памятка
 
         input.onSend = { r -> requireActivity().runOnUiThread { sendMessage(r) } }
@@ -179,24 +179,16 @@ class ChatFragment : Fragment() {
             try {
                 Agent.use(request).collect { flow ->
                     val message = currentChat.messages.last()
-                    val currentContent = message.content
-                    if (currentContent is MessageContent.Parts) {
-                        val updatedParts = currentContent.parts.map { part ->
-                            if (part is ContentPart.TextPart) {
-                                part.copy(text = part.text + flow.content)
-                            } else {
-                                part
-                            }
-                        }
-                        message.content = MessageContent.Parts(updatedParts)
-                    }
+                    message.streamDisplay(flow.content)
                     message.reasoning = (message.reasoning ?: "") + flow.reasoning
+                    message.toolCalls = (message.toolCalls ?: listOf()) + flow.toolCalls
 
                     requireActivity().runOnUiThread {
                         messagesAdapter.notifyItemChanged(messagesAdapter.itemCount - 1)
                     }
                 }
             } catch (e: Exception) {
+                currentChat.messages.last().streamDisplay(" ...$e")
                 Agent.isGenerating = false
                 Snackbar.make(requireView(), e.toString(), Snackbar.LENGTH_SHORT).show()
             } finally {
