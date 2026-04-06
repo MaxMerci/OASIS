@@ -66,7 +66,7 @@ class ChatFragment : Fragment() {
         lifecycleScope.launch {
             ChatRepository.state.collectLatest {
                 requireActivity().runOnUiThread { 
-                    messagesAdapter.notifyDataSetChanged()
+                    updateMessages()
                     updateEmptyViewVisibility()
                 }
             }
@@ -137,7 +137,9 @@ class ChatFragment : Fragment() {
         requireActivity().runOnUiThread {
             messagesAdapter.notifyDataSetChanged()
             updateEmptyViewVisibility()
-            messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
+            if (messagesAdapter.itemCount > 0) {
+                messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
+            }
         }
     }
 
@@ -188,6 +190,7 @@ class ChatFragment : Fragment() {
                     }
                 }
             } catch (e: Exception) {
+                print("ОШИБКА: {${e}}")
                 currentChat.messages.last().streamDisplay(" ...$e")
                 Agent.isGenerating = false
                 Snackbar.make(requireView(), e.toString(), Snackbar.LENGTH_SHORT).show()

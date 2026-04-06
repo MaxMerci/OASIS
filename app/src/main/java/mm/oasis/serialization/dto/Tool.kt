@@ -16,7 +16,7 @@ data class ToolCall(
 data class Tool(
     val type: String = "function",
     val function: FunctionDefinition,
-    @Transient val execute: (String) -> String = { "" }
+    @Transient val execute: suspend (String) -> String = { "" }
 )
 
 @Serializable

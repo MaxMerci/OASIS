@@ -74,6 +74,7 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
     @SuppressLint("SetTextI18n")
     fun bind(message: Message, markwon: Markwon?) {
+        println(message)
         /* SET BASE FIELDS */
         val newUrl = message.avatarUrl
         if ((avatarView.tag as? String) != newUrl) {

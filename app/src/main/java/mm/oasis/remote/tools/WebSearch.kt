@@ -1,16 +1,22 @@
 package mm.oasis.remote.tools
 
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import mm.oasis.remote.ApiClient
+import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.FunctionDefinition
 import mm.oasis.serialization.dto.JsonSchema
 import mm.oasis.serialization.dto.JsonSchemaProperty
+import mm.oasis.serialization.dto.Message
+import mm.oasis.serialization.dto.MessageContent
+import mm.oasis.serialization.dto.Request
 import mm.oasis.serialization.dto.Tool
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
-import java.net.URL
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+import kotlin.math.min
 
 object WebSearch : ToolI {
     private val json = Json { encodeDefaults = true }
@@ -18,20 +24,22 @@ object WebSearch : ToolI {
     @Serializable
     private data class Args(
         val query: String,
+        val sources: List<String> = emptyList(),
         val max: Int = 3
     )
 
     @Serializable
     private data class ArgsFetch(
         val url: String,
+        val query: String = "Display brief basic information from the page, with links to additional sources, if any."
     )
 
     override fun getTools(): List<Tool> {
         return listOf(
             Tool(
                 function = FunctionDefinition(
-                    name = "web_search",
-                    description = "Full internet search",
+                    name = "search_links",
+                    description = "Performs a search for a given query and extracts a list of links (URLs) from the results.",
                     parameters = JsonSchema(
                         type = "object",
                         properties = mapOf(
@@ -39,42 +47,13 @@ object WebSearch : ToolI {
                                 type = "str",
                                 description = "text query"
                             ),
-                            "max" to JsonSchemaProperty(
-                                type = "int",
-                                description = "maximum number of links to display information (default = 3)"
-                            )
-                        ),
-                        required = listOf("query")
-                    )
-                ),
-                execute = { args ->
-                    val args = json.decodeFromString<Args>(args)
-
-                    try {
-                        val links = searchLinks(args.query, args.max)
-                        val results = links.associateBy {
-                            extractContent(it)
-                        }
-                        results.toString()
-                    } catch (e: Exception) {
-                        e.toString()
-                    }
-                }
-            ),
-            Tool(
-                function = FunctionDefinition(
-                    name = "get_urls",
-                    description = "Get links to websites on query",
-                    parameters = JsonSchema(
-                        type = "object",
-                        properties = mapOf(
-                            "query" to JsonSchemaProperty(
-                                type = "str",
-                                description = "text query"
+                            "sources" to JsonSchemaProperty(
+                                type = "list",
+                                description = "sources for searching them (list of exact site URLs)"
                             ),
                             "max" to JsonSchemaProperty(
                                 type = "int",
-                                description = "maximum number of links to display information (default = 3)"
+                                description = "maximum number of links to display information (default = 3 | max = 5)"
                             )
                         ),
                         required = listOf("query")
@@ -83,8 +62,8 @@ object WebSearch : ToolI {
                 execute = { args ->
                     val args = json.decodeFromString<Args>(args)
                     try {
-                        val links = searchLinks(args.query, args.max)
-                        links.toString()
+                        val links = searchLinks(args.query, args.max, args.sources)
+                        "FOUND FOR \"${args.query}\" (MAX: ${args.max} SOURCES: ${args.sources}):\n" + links.toString()
                     } catch (e: Exception) {
                         e.toString()
                     }
@@ -92,14 +71,18 @@ object WebSearch : ToolI {
             ),
             Tool(
                 function = FunctionDefinition(
-                    name = "fetch_url",
-                    description = "Get text content from a website",
+                    name = "fetch_page",
+                    description = "Displays basic information from a web page upon request",
                     parameters = JsonSchema(
                         type = "object",
                         properties = mapOf(
                             "url" to JsonSchemaProperty(
                                 type = "str",
                                 description = "URL"
+                            ),
+                            "query" to JsonSchemaProperty(
+                                type = "str",
+                                description = "What the AI model will look for on the page (default: \"Extract the main information from the page, including additional sources if any. If the information is not found, say so.\")"
                             )
                         ),
                         required = listOf("url")
@@ -107,41 +90,64 @@ object WebSearch : ToolI {
                 ),
                 execute = { args ->
                     val args = json.decodeFromString<ArgsFetch>(args)
-                    extractContent(args.url)
+                    val result = fetchPage(args.url, args.query)
+                    result
                 }
             )
         )
     }
 
-    fun extractContent(url: String): String {
+    /**
+     * Я предупреждаю, это максимально не экономный метод.
+     * Самому больно такое делать.
+    */
+    suspend fun fetchPage(url: String, query: String): String {
         try {
             val doc: Document = Jsoup.connect(url)
                 .userAgent("Mozilla/5.0")
                 .timeout(10_000)
                 .get()
-            doc.select("script, style, nav, footer, header, ads, aside").remove()
-            val candidates = listOf(
-                doc.select("article"),
-                doc.select("[role=main]"),
-                doc.select(".content"),
-                doc.select("#content"),
-                doc.select(".post"),
-                doc.select(".article")
-            )
+            val text = doc.text()
 
-            val mainElement = candidates
-                .flatten()
-                .maxByOrNull { it.text().length }
+            var response = ""
 
-            return mainElement?.text() ?: doc.body().text()
+            ApiClient.generateStream(Request(
+                ProfileRepository.currentProfile!!.model!!.id,
+                listOf(
+                    Message(
+                        Message.MessageRole.SYSTEM,
+                        MessageContent.Text(text)
+                    ),
+                    Message(
+                        Message.MessageRole.USER,
+                        MessageContent.Text(query)
+                    )
+                ),
+                includeReasoning = false
+            )).collect { chunk ->
+                response += chunk.choices[0].delta.content ?: ""
+            }
+
+            return response
         } catch (e: Exception) {
             return e.toString()
         }
     }
 
-    fun searchLinks(query: String, max: Int): List<String> {
+    fun searchLinks(query: String, max: Int, sites: List<String>): List<String> {
+        val max = min(5, max)
         try {
-            val url = "https://duckduckgo.com/html/?q=" + query.replace(" ", "+")
+            val siteFilter = if (sites.isNotEmpty()) {
+                sites.joinToString(" OR ") { "site:$it" }
+            } else ""
+
+            val finalQuery = if (siteFilter.isNotEmpty()) {
+                "$query $siteFilter"
+            } else {
+                query
+            }
+
+            val url = "https://duckduckgo.com/html/?q=" + finalQuery.replace(" ", "+")
             val doc = Jsoup.connect(url)
                 .userAgent("Mozilla/5.0")
                 .timeout(10000)
@@ -163,7 +169,6 @@ object WebSearch : ToolI {
 
                 links.add(cleanLink)
             }
-
             return links
         } catch (e: Exception) {
             throw e

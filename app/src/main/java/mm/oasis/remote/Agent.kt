@@ -24,6 +24,7 @@ class ToolCallAccumulator(val index: Int) {
     var id = ""
 
     fun applyDelta(delta: ToolCallChunk) {
+        delta.id?.let { id += it }
         delta.type?.let { type = it }
         delta.function?.name?.let { functionName += it }
         delta.function?.arguments?.let { arguments += it }
@@ -76,11 +77,11 @@ object Agent {
 
         val messages = req.messages.map { it.copy() }.toMutableList()
 
-        do {
-            if (count > MAX_ITER) {
-                req.tools = listOf()
-            }
+        val req = req.copy(
+            messages = messages.toList(),
+        )
 
+        do {
             val acc = Accumulator()
             req.messages = messages
 
@@ -98,15 +99,18 @@ object Agent {
 
             messages.add(acc.toMessage())
 
-            acc.toolCalls.forEach {
-                val tool = ToolRegistry.getTool(it.functionName)
-                if (tool != null) launch {
-                    val result = withContext(Dispatchers.IO) { tool.execute(it.arguments) }
+            for (call in acc.toolCalls) {
+                val tool = ToolRegistry.getTool(call.functionName)
+                if (tool != null) {
+                    req.tools = req.tools!! - tool
+                    val result = withContext(Dispatchers.IO) {
+                        tool.execute(call.arguments)
+                    }
                     messages.add(
                         Message(
                             Message.MessageRole.TOOL,
                             MessageContent.Text(result),
-                            toolCallId = it.id
+                            toolCallId = call.id
                         )
                     )
                 }
