@@ -63,7 +63,7 @@ object WebSearch : ToolI {
                     val args = json.decodeFromString<Args>(args)
                     try {
                         val links = searchLinks(args.query, args.max, args.sources)
-                        "FOUND FOR \"${args.query}\" (MAX: ${args.max} SOURCES: ${args.sources}):\n" + links.toString()
+                        "FOUND FOR \"${args.query}\" (MAX: ${args.max}; SOURCES: ${args.sources}):\n" + links.toString()
                     } catch (e: Exception) {
                         e.toString()
                     }

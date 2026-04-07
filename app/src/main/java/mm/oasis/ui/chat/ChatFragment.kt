@@ -134,13 +134,13 @@ class ChatFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     fun updateMessages() {
-        requireActivity().runOnUiThread {
+        //requireActivity().runOnUiThread {
             messagesAdapter.notifyDataSetChanged()
             updateEmptyViewVisibility()
             if (messagesAdapter.itemCount > 0) {
                 messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
             }
-        }
+        //}
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -193,7 +193,9 @@ class ChatFragment : Fragment() {
                 print("ОШИБКА: {${e}}")
                 currentChat.messages.last().streamDisplay(" ...$e")
                 Agent.isGenerating = false
-                Snackbar.make(requireView(), e.toString(), Snackbar.LENGTH_SHORT).show()
+                requireView().let {
+                    Snackbar.make(it, e.toString(), Snackbar.LENGTH_SHORT).show()
+                }
             } finally {
                 input.setGenerating(false)
                 ChatRepository.save()
