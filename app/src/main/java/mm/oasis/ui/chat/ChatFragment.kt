@@ -134,13 +134,13 @@ class ChatFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     fun updateMessages() {
-        //requireActivity().runOnUiThread {
+        requireActivity().runOnUiThread {
             messagesAdapter.notifyDataSetChanged()
             updateEmptyViewVisibility()
             if (messagesAdapter.itemCount > 0) {
                 messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
             }
-        //}
+        }
     }
 
     @SuppressLint("NotifyDataSetChanged")

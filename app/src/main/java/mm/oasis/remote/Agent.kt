@@ -1,6 +1,7 @@
 package mm.oasis.remote
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -49,10 +50,10 @@ class Accumulator {
 
     fun toMessage(): Message {
         return Message(
-            role = Message.MessageRole.ASSISTANT,
-            content = MessageContent.Text(content),
-            reasoning = reasoning.ifEmpty { null },
-            toolCalls = toolCalls.map { it.toToolCall() }.ifEmpty { null }
+            Message.MessageRole.ASSISTANT,
+            MessageContent.Text(content),
+            reasoning.ifEmpty { null },
+            toolCalls.map { it.toToolCall() }.ifEmpty { null }
         )
     }
 }
@@ -77,15 +78,11 @@ object Agent {
 
         val messages = req.messages.map { it.copy() }.toMutableList()
 
-        val req = req.copy(
-            messages = messages.toList(),
-        )
-
         do {
-            val acc = Accumulator()
             req.messages = messages
-
+            val acc = Accumulator()
             ApiClient.generateStream(req).collect { chunk ->
+                println(chunk)
                 val c = chunk.choices[0].delta.content ?: ""
                 val r = chunk.choices[0].delta.reasoning ?: ""
 
@@ -99,13 +96,16 @@ object Agent {
 
             messages.add(acc.toMessage())
 
+            send(ResponseFlow(
+                reasoning = "\n\n",
+                toolCalls = acc.toolCalls.map { it.toToolCall() }
+            ))
+
             for (call in acc.toolCalls) {
                 val tool = ToolRegistry.getTool(call.functionName)
                 if (tool != null) {
-                    req.tools = req.tools!! - tool
-                    val result = withContext(Dispatchers.IO) {
-                        tool.execute(call.arguments)
-                    }
+                    //req.tools = req.tools!! - tool
+                    val result = async { tool.execute(call.arguments) }.await()
                     messages.add(
                         Message(
                             Message.MessageRole.TOOL,
@@ -115,18 +115,6 @@ object Agent {
                     )
                 }
             }
-
-            send(ResponseFlow(
-                reasoning = "\n\n",
-                toolCalls = acc.toolCalls.map { it.toToolCall() }
-            ))
-
-//            send(
-//                ResponseFlow(
-//                    acc.toolCalls.joinToString("\n") { "`use " + it.functionName + "`" } + "\n",
-//                    ""
-//                )
-//            )
 
             count++
         } while (true)

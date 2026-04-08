@@ -74,7 +74,6 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
     @SuppressLint("SetTextI18n")
     fun bind(message: Message, markwon: Markwon?) {
-        println(message)
         /* SET BASE FIELDS */
         val newUrl = message.avatarUrl
         if ((avatarView.tag as? String) != newUrl) {
@@ -105,10 +104,14 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
                     changeReasoningParagraph(newText)
                 }
             }
-        } else if (content.isNotBlank()) {
+        }
+
+        if (content.isNotBlank()) {
             if (reasoningContainer.alpha == 1f) collapse(reasoningContainer)
             if (!contentView.isVisible) expand(contentView)
             markwon?.setMarkdown(contentView, content)
+        } else {
+            contentView.text = ""
         }
 
         if (!message.toolCalls.isNullOrEmpty()) {
@@ -116,6 +119,8 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             toolsUse.text = message.toolCalls!!.joinToString("\n") {
                 "use " + (it.function?.name ?: "U") + " " + it.function?.arguments
             } + "\n"
+        } else {
+            toolsUse.text = ""
         }
     }
 
