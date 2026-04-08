@@ -16,10 +16,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import mm.oasis.R
 import mm.oasis.remote.Agent
+import mm.oasis.remote.ToolRegistry
 import mm.oasis.remote.tools.WebSearch
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.ContentPart

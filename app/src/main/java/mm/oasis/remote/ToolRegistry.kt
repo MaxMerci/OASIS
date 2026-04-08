@@ -15,6 +15,6 @@ object ToolRegistry {
 
 
 fun registerTools(tools: List<ToolI>) {
-    tools.forEach { c -> c.getTools().forEach { ToolRegistry.register(it) } }
+    tools.forEach { c -> ToolRegistry.register(c.getTool()) }
 }
 
