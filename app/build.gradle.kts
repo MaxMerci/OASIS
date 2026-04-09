@@ -30,8 +30,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     buildFeatures {
@@ -71,6 +71,9 @@ dependencies {
 
     // Parse
     implementation(libs.jsoup)
+    implementation("ai.djl:api:0.26.0")
+    implementation("ai.djl.huggingface:tokenizers:0.26.0")
+    implementation("ai.djl.onnxruntime:onnxruntime-engine:0.26.0")
 
     // Markdown
     implementation(libs.markwon.core)

@@ -1,12 +1,8 @@
 package mm.oasis.remote
 
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import mm.oasis.serialization.dto.FunctionCall
 import mm.oasis.serialization.dto.Message
 import mm.oasis.serialization.dto.MessageContent
@@ -81,8 +77,7 @@ object Agent {
         do {
             req.messages = messages
             val acc = Accumulator()
-            ApiClient.generateStream(req).collect { chunk ->
-                println(chunk)
+            ApiClient.generateTextStream(req).collect { chunk ->
                 val c = chunk.choices[0].delta.content ?: ""
                 val r = chunk.choices[0].delta.reasoning ?: ""
 
@@ -104,7 +99,7 @@ object Agent {
             for (call in acc.toolCalls) {
                 val tool = ToolRegistry.getTool(call.functionName)
                 if (tool != null) {
-                    //req.tools = req.tools!! - tool
+                    req.tools = req.tools!! - tool
                     val result = async { tool.execute(call.arguments) }.await()
                     messages.add(
                         Message(
