@@ -16,6 +16,7 @@ import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.readUTF8Line
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
+import mm.oasis.serialization.dto.EmbedRequest
 import mm.oasis.serialization.dto.EmbedResp
 import okhttp3.Protocol
 import java.util.concurrent.TimeUnit
@@ -91,21 +92,15 @@ object ApiClient{
         generationJob?.cancel()
     }
 
-    suspend fun embedding(input: String): EmbedResp {
+    suspend fun embedding(req: EmbedRequest): EmbedResp {
         val response: HttpResponse = client.post(
             "https://lamhieu-lightweight-embeddings.hf.space/v1/embeddings"
         ) {
             headers.remove(HttpHeaders.Authorization)
             contentType(ContentType.Application.Json)
             accept(ContentType.Application.Json)
-            setBody(
-                mapOf(
-                    "model" to "multilingual-e5-small",
-                    "input" to input
-                )
-            )
+            setBody(req)
         }
-        println(response.bodyAsText())
         return response.body<EmbedResp>()
     }
 

@@ -77,6 +77,7 @@ object Agent {
         do {
             req.messages = messages
             val acc = Accumulator()
+            println(req.messages)
             ApiClient.generateTextStream(req).collect { chunk ->
                 val c = chunk.choices[0].delta.content ?: ""
                 val r = chunk.choices[0].delta.reasoning ?: ""

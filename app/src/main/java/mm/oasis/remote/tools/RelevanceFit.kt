@@ -104,7 +104,7 @@ class RelevanceFit private constructor(
                 return RelevanceFit(emptyList(), emptyList(), defaultMinSimilarity)
             }
 
-            val embedding = Embedding()   // один экземпляр на всё
+            val embedding = Embedding()
 
             val semanticChunks = createOverlappingChunks(
                 sentences = sentences,
@@ -112,7 +112,6 @@ class RelevanceFit private constructor(
                 overlap = overlapSentences
             )
 
-            // ОДИН вызов API на ВСЕ чанки документа!
             val chunkEmbeddings = embedding.batchEmbed(semanticChunks)
 
             return RelevanceFit(

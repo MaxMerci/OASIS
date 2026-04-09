@@ -53,14 +53,15 @@ object WebSearch : ToolI {
                 val args = json.decodeFromString<Args>(args)
 
                 var response = ""
-
                 for (link in searchLinks(args.query)) {
+                    println("READING: $link")
+
                     response += link + "\n"
 
                     var doc: Document
                     try {
                         doc = withContext(Dispatchers.IO) {
-                            Jsoup.connect("https://www.weather-forecast.com/locations/Moscow/forecasts/latest")
+                            Jsoup.connect(link)
                                 .userAgent("Mozilla/5.0")
                                 .timeout(15_000)
                                 .get()
@@ -72,11 +73,10 @@ object WebSearch : ToolI {
 
                     val raw = RelevanceFit.cleanDoc(doc)
                     val relevancePrep = RelevanceFit.create(
-                        raw,
-                        12, 2, 0.35
+                        raw
                     )
                     val relevant = relevancePrep.getRelevantChunks(args.query)
-                    response += relevant.joinToString { it.trimIndent() + "\n" } + "\n"
+                    response += relevant.joinToString { it.trimIndent().ifEmpty { "NOT DATA FOUND" } + "\n" } + "\n"
                 }
 
                 response
