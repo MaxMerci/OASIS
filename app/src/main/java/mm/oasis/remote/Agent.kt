@@ -1,6 +1,8 @@
 package mm.oasis.remote
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import mm.oasis.serialization.dto.FunctionCall
@@ -86,7 +88,8 @@ object Agent {
                 acc.reasoning += r
                 chunk.choices[0].delta.toolCalls?.forEach { acc.appendToolCalls(it) }
 
-                send(ResponseFlow(c, r))
+                if (c.isNotEmpty() || r.isNotEmpty())
+                    send(ResponseFlow(c, r))
             }
             if (acc.toolCalls.isEmpty() || !isGenerating) break
 
@@ -97,20 +100,20 @@ object Agent {
                 toolCalls = acc.toolCalls.map { it.toToolCall() }
             ))
 
-            for (call in acc.toolCalls) {
-                val tool = ToolRegistry.getTool(call.functionName)
-                if (tool != null) {
-                    req.tools = req.tools!! - tool
-                    val result = async { tool.execute(call.arguments) }.await()
-                    messages.add(
-                        Message(
-                            Message.MessageRole.TOOL,
-                            MessageContent.Text(result),
-                            toolCallId = call.id
-                        )
+            val jobs = acc.toolCalls.mapNotNull { call ->
+                val tool = ToolRegistry.getTool(call.functionName) ?: return@mapNotNull null
+                req.tools = req.tools!! - tool
+                async(Dispatchers.IO) {
+                    val result = tool.execute(call.arguments)
+                    Message(
+                        Message.MessageRole.TOOL,
+                        MessageContent.Text(result),
+                        toolCallId = call.id
                     )
                 }
             }
+            val results = jobs.awaitAll()
+            messages.addAll(results)
 
             count++
         } while (true)

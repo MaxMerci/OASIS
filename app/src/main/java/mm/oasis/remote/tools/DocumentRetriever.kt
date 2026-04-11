@@ -1,34 +1,54 @@
 package mm.oasis.remote.tools
 
+import mm.oasis.remote.ApiClient
+import mm.oasis.serialization.dto.EmbedRequest
 import org.jsoup.nodes.Document
 import kotlin.math.sqrt
 
-class RelevanceFit private constructor(
+class DocumentRetriever private constructor(
     private val chunks: List<String>,
     private val chunkEmbeddings: List<List<Double>>,
     private val defaultMinSimilarity: Double
 ) {
-    private val embedding = Embedding()
-
-    suspend fun getRelevantChunks(
+    suspend fun retrieve(
         query: String,
-        maxChunks: Int = 8,
+        maxChunks: Int = 5,
         minSimilarity: Double = defaultMinSimilarity
     ): List<String> {
         if (query.isBlank() || chunks.isEmpty()) return emptyList()
 
-        val queryEmbedding = embedding.embed(query)
+        val response = ApiClient.embedding(
+            EmbedRequest(input = listOf(query))
+        )
+
+        val queryEmbedding = response.data[0].embedding
 
         val scored = chunks.zip(chunkEmbeddings)
-            .mapNotNull { (chunkText, chunkEmb) ->
+            .map { (chunkText, chunkEmb) ->
                 val sim = cosineSimilarity(queryEmbedding, chunkEmb)
-                if (sim >= minSimilarity) chunkText to sim else null
+                chunkText to sim
             }
             .sortedByDescending { it.second }
             .take(maxChunks)
-            .map { it.first }
 
-        return scored
+        var retrieved = scored.filter { it.second > minSimilarity }
+
+        // Если результатов не найдено, вычисляем индекс с самой большой разницей sim и берем все блоки до него.
+        retrieved.ifEmpty {
+            if (scored.size < 2) return@ifEmpty
+            var maxDiff = Double.MIN_VALUE
+            var maxIndex = -1
+            for (i in 0 until scored.size - 1) {
+                val diff = scored[i].second - (scored[i].second + 1)
+                if (diff > maxDiff) {
+                    maxDiff = diff
+                    maxIndex = i
+                }
+            }
+            retrieved = scored.take(maxIndex - 1)
+        }
+
+        return retrieved.map { it.first }
     }
 
     private fun cosineSimilarity(a: List<Double>, b: List<Double>): Double {
@@ -51,7 +71,7 @@ class RelevanceFit private constructor(
     }
 
     companion object {
-        fun cleanDoc(doc: Document): String {
+        fun clearDoc(doc: Document): String {
             doc.select("script, style, noscript, svg, canvas, iframe, header, footer, nav, aside").remove()
             var text = doc.body()?.text() ?: doc.text()
             text = text.replace(Regex("""\s+"""), " ")
@@ -97,27 +117,28 @@ class RelevanceFit private constructor(
             sentencesPerChunk: Int = 12,
             overlapSentences: Int = 4,
             defaultMinSimilarity: Double = 0.65
-        ): RelevanceFit {
-
+        ): DocumentRetriever {
             val sentences = splitIntoSentences(document)
             if (sentences.isEmpty()) {
-                return RelevanceFit(emptyList(), emptyList(), defaultMinSimilarity)
+                return DocumentRetriever(emptyList(), emptyList(), defaultMinSimilarity)
             }
 
-            val embedding = Embedding()
-
-            val semanticChunks = createOverlappingChunks(
-                sentences = sentences,
-                chunkSize = sentencesPerChunk,
-                overlap = overlapSentences
+            val chunks = overlappingChunks(
+                sentences,
+                sentencesPerChunk,
+                overlapSentences
             )
 
-            val chunkEmbeddings = embedding.batchEmbed(semanticChunks)
+            val response = ApiClient.embedding(
+                EmbedRequest(input = chunks)
+            )
 
-            return RelevanceFit(
-                chunks = semanticChunks,
-                chunkEmbeddings = chunkEmbeddings,
-                defaultMinSimilarity = defaultMinSimilarity
+            val chunkEmbeddings = response.data.map { it.embedding }
+
+            return DocumentRetriever(
+                chunks,
+                chunkEmbeddings,
+                defaultMinSimilarity
             )
         }
 
@@ -126,7 +147,7 @@ class RelevanceFit private constructor(
                 .filter { it.isNotBlank() }
                 .map { it.trim() }
 
-        private fun createOverlappingChunks(
+        private fun overlappingChunks(
             sentences: List<String>,
             chunkSize: Int,
             overlap: Int

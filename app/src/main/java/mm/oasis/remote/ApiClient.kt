@@ -27,7 +27,7 @@ private val json = kotlinx.serialization.json.Json {
     explicitNulls = false
 }
 
-object ApiClient{
+object ApiClient {
     private var generationJob: Job? = null
 
     private val client = HttpClient(OkHttp) {
@@ -105,19 +105,6 @@ object ApiClient{
     }
 
     suspend fun fetchModels(): LLMResponse {
-        val avatars = mapOf(
-            "gpt" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://chatgpt.com",
-            "claude" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://claude.ai",
-            "gemini" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://google.com",
-            "gemma" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://google.com",
-            "meta" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://chatgpt.com",
-            "mistral" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://mistral.ai",
-            "mistral" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://mistral.ai",
-            "cohere" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://cohere.com/",
-            "grok" to "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://grok.com/"
-        )
-        val defaultAvatar = "https://alduris.github.io/watcher-map/embed.png" // да я люблю рв
-
         val profile = ProfileRepository.currentProfile
         val baseUrl = profile?.endPoint?.trimEnd('/')
         val url = "$baseUrl/models"
@@ -125,24 +112,47 @@ object ApiClient{
         val response = client.get(url) {
             parameter("order", "most-popular")
         }
+        val models = response.body<LLMResponse>()
+        models.data.forEach { it.avatarUrl = findAvatar(it.id) }
+        return models
+    }
 
-        if (response.status.value != 200) {
-            val errorText = response.bodyAsText()
-            throw IllegalStateException("API Error ${response.status}: $errorText")
-        }
+    fun findAvatar(q: String): String {
+        // оооууу да, Маквин готов!
+        val favicon = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url="
 
-        val r = response.body<LLMResponse>()
+        val avatars = mapOf(
+            "gpt" to "${favicon}https://chatgpt.com",
+            "claude" to "${favicon}https://claude.ai",
+            "google" to "${favicon}https://google.com",
+            "meta" to "${favicon}https://chatgpt.com",
+            "mistral" to "${favicon}https://mistral.ai",
+            "mistral" to "${favicon}https://mistral.ai",
+            "cohere" to "${favicon}https://cohere.com/",
+            "grok" to "${favicon}https://grok.com/",
+            "nvidia" to "${favicon}https://www.nvidia.com",
+            "qwen" to "${favicon}https://chat.qwen.ai/",
+            "anthropic" to "${favicon}https://www.anthropic.com/",
+        )
+        val defaultAvatar = listOf(
+            "https://static.wikia.nocookie.net/rainworld/images/8/82/Main_Slugcat_Yellow.png/revision/latest/smart/width/250/height/250?cb=20190609053103&path-prefix=ru",
+            "https://biographe.ru/wp-content/uploads/2025/10/3212.jpg",
+            "https://e7.pngegg.com/pngimages/369/83/png-clipart-emoticon-emoji-heart-smiley-love-emoji-sticker-symbol.png",
+            "https://rberega.info/wp-content/uploads/2022/09/%D1%81%D0%BC%D0%B0%D0%B9%D0%BB%D0%B8%D0%BA-1024x1024.jpg",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQbo1MkPosK42nOCM3geaJST5IeknlgCJQT6g&s",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQKYdj337ura2bM14B-zc7R7o08kLYBgtq8RA&s",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTXPpXln3KTK1BT885r3JLycGD06fgHQM0r6w&s",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHagsmFfRv-mUPbDrpavQwL88GeK9-jp0QgA&s"
+        ).random()
 
-        for (m in r.data) {
-            for ((k, u) in avatars.entries) {
-                if (m.id.contains(k)) {
-                    m.avatarUrl = u
-                    break
-                }
-                m.avatarUrl = defaultAvatar
+        val lowerQ = q.lowercase()
+
+        for ((key, value) in avatars) {
+            if (lowerQ.contains(key)) {
+                return value
             }
         }
 
-        return r
+        return defaultAvatar
     }
 }

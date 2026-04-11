@@ -1,6 +1,9 @@
 package mm.oasis.remote.tools
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -34,7 +37,7 @@ object WebSearch : ToolI {
                     properties = mapOf(
                         "query" to JsonSchemaProperty(
                             type = "str",
-                            description = "text query"
+                            description = "text query, write only in English (translate manually)"
                         ),
                         "sources" to JsonSchemaProperty(
                             type = "list",
@@ -49,37 +52,31 @@ object WebSearch : ToolI {
                 )
             ),
             execute = { args ->
-                println("WEB SEARCH")
                 val args = json.decodeFromString<Args>(args)
 
-                var response = ""
-                for (link in searchLinks(args.query)) {
-                    println("READING: $link")
+                val results = coroutineScope {
+                    searchLinks(args.query, args.sources, args.max).map { link ->
+                        async(Dispatchers.IO) {
+                            try {
+                                val doc = Jsoup.connect(link)
+                                    .userAgent("Mozilla/5.0")
+                                    .timeout(5_000)
+                                    .get()
 
-                    response += link + "\n"
+                                val raw = DocumentRetriever.clearDoc(doc)
+                                val relevancePrep = DocumentRetriever.create(raw)
+                                val relevant = relevancePrep.retrieve(args.query)
 
-                    var doc: Document
-                    try {
-                        doc = withContext(Dispatchers.IO) {
-                            Jsoup.connect(link)
-                                .userAgent("Mozilla/5.0")
-                                .timeout(15_000)
-                                .get()
+                                if (relevant.isNotEmpty()) {
+                                    "$link\n" + relevant.joinToString("\n") { it.trimIndent() } + "\n"
+                                } else null
+                            } catch (e: Exception) {
+                                null
+                            }
                         }
-                    } catch (e: Exception) {
-                        response += "ERROR READING: ${e.message ?: e.toString()}\n"
-                        continue
-                    }
-
-                    val raw = RelevanceFit.cleanDoc(doc)
-                    val relevancePrep = RelevanceFit.create(
-                        raw
-                    )
-                    val relevant = relevancePrep.getRelevantChunks(args.query)
-                    response += relevant.joinToString { it.trimIndent().ifEmpty { "NOT DATA FOUND" } + "\n" } + "\n"
+                    }.awaitAll()
                 }
-
-                response
+                results.filterNotNull().joinToString("\n")
             }
         )
     }

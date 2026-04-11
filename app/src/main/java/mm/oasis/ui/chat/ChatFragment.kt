@@ -30,6 +30,8 @@ import mm.oasis.serialization.dto.Message
 import mm.oasis.serialization.dto.MessageContent
 import mm.oasis.serialization.dto.Request
 import mm.oasis.serialization.dto.ToolCall
+import mm.oasis.serialization.storage.ChatData
+import kotlin.collections.plus
 
 class ChatFragment : Fragment() {
 
@@ -166,20 +168,26 @@ class ChatFragment : Fragment() {
 
             val currentChat = ChatRepository.currentChat
 
-            currentChat.messages += request.messages + Message(
-                avatarUrl = ProfileRepository.currentProfile?.model?.avatarUrl,
-                role = Message.MessageRole.ASSISTANT,
-                content = MessageContent.Parts(
-                    listOf(ContentPart.TextPart(""))
-                ),
-                reasoning = "",
-                name = request.model,
-            )
-
+            currentChat.messages += request.messages
             updateMessages()
 
             try {
+                var messageInserted = false
                 Agent.use(request).collect { flow ->
+                    if (!messageInserted) {
+                        currentChat.messages += Message(
+                            avatarUrl = ProfileRepository.currentProfile?.model?.avatarUrl,
+                            role = Message.MessageRole.ASSISTANT,
+                            content = MessageContent.Parts(
+                                listOf(ContentPart.TextPart(""))
+                            ),
+                            reasoning = "",
+                            name = request.model,
+                        )
+                        updateMessages()
+                        messageInserted = true
+                    }
+
                     val message = currentChat.messages.last()
                     message.streamDisplay(flow.content)
                     message.reasoning = (message.reasoning ?: "") + flow.reasoning

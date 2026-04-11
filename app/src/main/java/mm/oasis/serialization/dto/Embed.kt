@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class EmbedRequest(
-    val model: String = "multilingual-e5-small", //"embeddinggemma-300m", ну типа, сами решайте, тяжело
+    val model: String = "bge-m3",
     val input: List<String>
 )
 
