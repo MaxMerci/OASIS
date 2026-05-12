@@ -1,4 +1,4 @@
-package mm.oasis.ui.chat
+package mm.oasis.ui.chat.message
 
 import android.annotation.SuppressLint
 import android.view.LayoutInflater

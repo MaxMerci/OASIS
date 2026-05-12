@@ -7,8 +7,8 @@ import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class Request(
-    var model: String = "",
     var messages: List<Message> = emptyList(),
+    var model: String? = null,
     val stream: Boolean = true, // не надо это трогать, мое
     var temperature: Double? = 1.0,
     @SerialName("top_p") var topP: Double? = null,

@@ -14,6 +14,12 @@ data class Message(
     val name: String? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null
 ) {
+    data class Flow(
+        val content: String = "",
+        val reasoning: String = "",
+        val toolCalls: List<ToolCall> = emptyList()
+    )
+
     fun streamDisplay(streamContent: String) {
         val currentContent = content
         if (currentContent is MessageContent.Parts) {

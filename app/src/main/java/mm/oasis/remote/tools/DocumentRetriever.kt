@@ -5,6 +5,9 @@ import mm.oasis.serialization.dto.EmbedRequest
 import org.jsoup.nodes.Document
 import kotlin.math.sqrt
 
+/**
+ * Этот класс  - отголосок темного прошлого, использовать его не надо.
+ * */
 class DocumentRetriever private constructor(
     private val chunks: List<String>,
     private val chunkEmbeddings: List<List<Double>>,

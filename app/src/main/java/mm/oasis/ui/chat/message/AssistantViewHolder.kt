@@ -29,8 +29,6 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
     private val reasoningNext: TextView = view.findViewById(R.id.reasoningNext)
     private val reasoningContainer: FrameLayout = view.findViewById(R.id.reasoning)
 
-    private val toolsUse: TextView = view.findViewById(R.id.toolsUse)
-
     fun latexFix(text: String): String {
         val regex = Regex("""(?<!\\)\$((?:[^$]|\\\$)+?)(?<!\\)\$""")
         return regex.replace(text) {
@@ -101,7 +99,7 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
             val newText = parts[targetIndex].trim()
             if (reasoningCurrent.text != newText) {
                 reasoningContainer.post {
-                    changeReasoningParagraph(newText)
+                    changeReasoningParagraph(newText, markwon)
                 }
             }
         }
@@ -109,26 +107,21 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         if (content.isNotBlank()) {
             if (reasoningContainer.alpha == 1f) collapse(reasoningContainer)
             if (!contentView.isVisible) expand(contentView)
-            markwon?.setMarkdown(contentView, content)
+            markwon?.setMarkdown(contentView, content) ?: run {
+                contentView.text = content
+            }
         } else {
             contentView.text = ""
         }
-
-        if (!message.toolCalls.isNullOrEmpty()) {
-            if (!toolsUse.isVisible) expand(toolsUse)
-            toolsUse.text = message.toolCalls!!.joinToString("\n") {
-                "use " + (it.function?.name ?: "U") + " " + it.function?.arguments
-            } + "\n"
-        } else {
-            toolsUse.text = ""
-        }
     }
 
-    private fun changeReasoningParagraph(newText: String) {
+    private fun changeReasoningParagraph(newText: String, markwon: Markwon?) {
         if (reasoningNext.isVisible) return
         if (reasoningCurrent.text?.toString() == newText) return
 
-        reasoningNext.text = newText
+        markwon?.setMarkdown(reasoningNext, newText) ?: run {
+            reasoningNext.text = newText
+        }
 
         val wSpec = MeasureSpec.makeMeasureSpec(
             reasoningContainer.measuredWidth,

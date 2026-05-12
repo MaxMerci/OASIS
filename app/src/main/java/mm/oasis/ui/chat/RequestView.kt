@@ -4,37 +4,21 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
-import android.view.LayoutInflater
-import android.view.MotionEvent
-import android.view.View
-import android.view.ViewConfiguration
-import android.widget.EditText
-import android.widget.ImageButton
-import android.widget.LinearLayout
-import android.widget.TextView
+import android.view.*
+import android.widget.*
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import mm.oasis.R
 import mm.oasis.remote.Agent
+import mm.oasis.remote.ApiClient
 import mm.oasis.remote.ToolRegistry
-import mm.oasis.remote.tools.DocumentRetriever
 import mm.oasis.repository.ProfileRepository
-import mm.oasis.serialization.dto.ContentPart
-import mm.oasis.serialization.dto.Message
-import mm.oasis.serialization.dto.MessageContent
-import mm.oasis.serialization.dto.Request
-import org.jsoup.Jsoup
-import kotlin.math.abs
-import kotlin.math.max
-import kotlin.math.min
-import kotlin.system.measureTimeMillis
+import mm.oasis.serialization.dto.*
+import mm.oasis.ui.chat.message.AttachmentsAdapter
+import kotlin.math.*
 
-@SuppressLint("ClickableViewAccessibility")
-class RequestView @JvmOverloads constructor(
+class RequestView(
     context: Context,
     attrs: AttributeSet? = null
 ) : LinearLayout(context, attrs) {
@@ -42,78 +26,118 @@ class RequestView @JvmOverloads constructor(
     var request = Request()
     var onSend: ((Request) -> Unit)? = null
     var onAddAttachment: (() -> Unit)? = null
-    /* VALUES */
+
+    /* UI REFERENCES */
     private val content: EditText
-    private val settingsContainer: View
     private val send: ImageButton
     private val addAttachment: ImageButton
+
+    private val settingsContainer: View
+    private val attachmentsList: RecyclerView
+    private val attachmentsAdapter: AttachmentsAdapter
+
+    private val toolsList: RecyclerView
+    private val toolsAdapter: ToolsListAdapter
+
     /* REASONING */
     private val reasoningYes: TextView
     private val reasoningAuto: TextView
     private val reasoningNo: TextView
-    private var reasoningState: Boolean? = null // null = AUTO, true = YES, false = NO
-    /* OTHER */
-    private val temperature: EditText
-    private val maxTokens: EditText
-    private val attachmentsList: RecyclerView
-    private val attachmentsAdapter: AttachmentsAdapter
-    /* TOOLS */
-    private val toolsAdapter: ToolsListAdapter
-    private val toolsList: RecyclerView
-    /* ANIM */
+
+    private var reasoningMode: ReasoningMode = ReasoningMode.AUTO
+
+    /* PARAMETERS */
+    private val temperatureField: EditText
+    private val maxTokensField: EditText
+
+    /* ANIM & TOUCH */
     private var fullSettingsHeight = 0
     private var initialY = 0f
     private var initialHeight = 0
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
 
+    /* STATE */
     private var isGenerating = false
 
     init {
         orientation = VERTICAL
         LayoutInflater.from(context).inflate(R.layout.request_fields, this, true)
 
+        // MAIN
         content = findViewById(R.id.contentInput)
         send = findViewById(R.id.sendButton)
         addAttachment = findViewById(R.id.addAttachment)
-        
+
+        // REASONING
         reasoningYes = findViewById(R.id.reasoningYes)
         reasoningAuto = findViewById(R.id.reasoningAuto)
         reasoningNo = findViewById(R.id.reasoningNo)
-        
-        temperature = findViewById(R.id.temperature)
-        maxTokens = findViewById(R.id.maxTokens)
-        settingsContainer = findViewById(R.id.settingsContainer)
-        attachmentsList = findViewById(R.id.attachmentsList)
 
-        attachmentsAdapter = AttachmentsAdapter { _ ->
-            updateAttachmentsVisibility()
-        }
+        // PARAMETERS
+        temperatureField = findViewById(R.id.temperature)
+        maxTokensField = findViewById(R.id.maxTokens)
+
+        // ATTACHMENTS
+        attachmentsList = findViewById(R.id.attachmentsList)
+        attachmentsAdapter = AttachmentsAdapter { updateAttachmentsVisibility() }
         attachmentsList.adapter = attachmentsAdapter
 
+        // TOOLS
+        toolsList = findViewById(R.id.toolsList)
+        toolsAdapter = ToolsListAdapter()
+        toolsList.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+        toolsList.adapter = toolsAdapter
+
+        // SETTINGS
+        settingsContainer = findViewById(R.id.settingsContainer)
         settingsContainer.visibility = VISIBLE
         settingsContainer.measure(
             MeasureSpec.makeMeasureSpec(resources.displayMetrics.widthPixels, MeasureSpec.AT_MOST),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         )
         fullSettingsHeight = settingsContainer.measuredHeight
-
-        toolsList = findViewById(R.id.toolsList)
-        toolsAdapter = ToolsListAdapter()
-        toolsList.layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-        toolsList.adapter = toolsAdapter
-
         updateSettingsHeight(0)
 
-        addAttachment.setOnClickListener {
-            onAddAttachment?.invoke()
-        }
+        updateReasoningState(ReasoningMode.AUTO)
+        setupListeners()
+    }
 
-        updateReasoningState(reasoningState)
-        reasoningYes.setOnClickListener { updateReasoningState(true) }
-        reasoningAuto.setOnClickListener { updateReasoningState(null) }
-        reasoningNo.setOnClickListener { updateReasoningState(false) }
+    private fun setupListeners() {
+        addAttachment.setOnClickListener { onAddAttachment?.invoke() }
+
+        reasoningYes.setOnClickListener { updateReasoningState(ReasoningMode.ENABLED) }
+        reasoningAuto.setOnClickListener { updateReasoningState(ReasoningMode.AUTO) }
+        reasoningNo.setOnClickListener { updateReasoningState(ReasoningMode.DISABLED) }
 
         send.setOnClickListener { onClickSend() }
+    }
+
+    fun addAttachment(part: ContentPart) {
+        attachmentsAdapter.addItem(part)
+        updateAttachmentsVisibility()
+    }
+
+    fun setGenerating(generating: Boolean) {
+        isGenerating = generating
+        send.setImageResource(if (generating) R.drawable.ic_stop else R.drawable.ic_send)
+    }
+
+    fun clear() {
+        request = Request()
+        content.text.clear()
+        attachmentsAdapter.clear()
+        updateAttachmentsVisibility()
+    }
+
+    private enum class ReasoningMode {
+        AUTO, ENABLED, DISABLED
+    }
+
+    private fun updateReasoningState(mode: ReasoningMode) {
+        reasoningMode = mode
+        reasoningYes.setBackgroundResource(if (mode == ReasoningMode.ENABLED) R.drawable.ic_bg_g_r else android.R.color.transparent)
+        reasoningAuto.setBackgroundResource(if (mode == ReasoningMode.AUTO) R.drawable.ic_bg_g_r else android.R.color.transparent)
+        reasoningNo.setBackgroundResource(if (mode == ReasoningMode.DISABLED) R.drawable.ic_bg_g_r else android.R.color.transparent)
     }
 
     private fun onClickSend() {
@@ -123,48 +147,50 @@ class RequestView @JvmOverloads constructor(
         }
 
         val contentText = content.text.toString()
-        val temperature = this@RequestView.temperature.text.toString()
-        val topPText = maxTokens.text.toString()
-        val attachments = attachmentsAdapter.getItems().toMutableList()
+        val attachments = attachmentsAdapter.getItems()
+        if (contentText.isBlank() && attachments.isEmpty()) return
 
-        if (contentText.isNotBlank() || attachments.isNotEmpty()) {
-            request.model = ProfileRepository.currentProfile?.model?.id ?: "MODEL NOT SELECTED"
-            request.includeReasoning = reasoningState
-            request.maxTokens = if (temperature.isNotBlank()) temperature.toInt() else null
-            request.topP = if (topPText.isNotBlank()) topPText.toDouble() else null
-            request.tools = toolsAdapter.enabledTools
+        request.apply {
+            model = ProfileRepository.currentProfile?.model?.id ?: "MODEL NOT SELECTED"
+            includeReasoning = when (reasoningMode) {
+                ReasoningMode.AUTO -> null
+                ReasoningMode.ENABLED -> true
+                ReasoningMode.DISABLED -> false
+            }
+            maxTokens = temperatureField.text.toString().takeIf { it.isNotBlank() }?.toIntOrNull()
+            topP = maxTokensField.text.toString().takeIf { it.isNotBlank() }?.toDoubleOrNull()
+            tools = toolsAdapter.enabledTools
 
-            val parts = mutableListOf<ContentPart>()
+            val textParts = attachments.filterIsInstance<ContentPart.TextPart>()
+            val mediaParts = attachments.filter { it !is ContentPart.TextPart }
+
+            textParts.forEach { part ->
+                messages += Message(
+                    role = Message.MessageRole.SYSTEM,
+                    content = MessageContent.Parts(listOf(part))
+                )
+            }
+
+            val userContentParts = mutableListOf<ContentPart>()
             if (contentText.isNotBlank()) {
-                parts.add(ContentPart.TextPart(contentText))
+                userContentParts.add(ContentPart.TextPart(contentText))
             }
-            for (part in attachments) {
-                if (part is ContentPart.TextPart) {
-                    request.messages += Message(
-                        role = Message.MessageRole.SYSTEM,
-                        content = MessageContent.Parts(listOf(part))
-                    )
-                    attachments.remove(part)
-                }
-            }
-            parts.addAll(attachments)
+            userContentParts.addAll(mediaParts)
 
-            request.messages += Message(
+            messages += Message(
                 avatarUrl = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${ProfileRepository.currentProfile?.endPoint}",
                 role = Message.MessageRole.USER,
-                content = MessageContent.Parts(parts),
-                name = ProfileRepository.currentProfile?.endpointDomain() ?: "YOU",
+                content = MessageContent.Parts(userContentParts),
+                name = ProfileRepository.currentProfile?.endpointDomain() ?: "YOU"
             )
-            onSend?.invoke(request)
-            clear()
         }
+
+        onSend?.invoke(request)
+        clear()
     }
 
-    private fun updateReasoningState(state: Boolean?) {
-        reasoningState = state
-        reasoningYes.setBackgroundResource(if (state == true) R.drawable.ic_bg_g_r else android.R.color.transparent)
-        reasoningAuto.setBackgroundResource(if (state == null) R.drawable.ic_bg_g_r else android.R.color.transparent)
-        reasoningNo.setBackgroundResource(if (state == false) R.drawable.ic_bg_g_r else android.R.color.transparent)
+    private fun updateAttachmentsVisibility() {
+        attachmentsList.visibility = if (attachmentsAdapter.itemCount > 0) VISIBLE else GONE
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
@@ -174,15 +200,13 @@ class RequestView @JvmOverloads constructor(
                 initialHeight = settingsContainer.layoutParams.height
             }
             MotionEvent.ACTION_MOVE -> {
-                val diff = abs(event.rawY - initialY)
-                if (diff > touchSlop) {
-                    return true
-                }
+                if (abs(event.rawY - initialY) > touchSlop) return true
             }
         }
         return super.onInterceptTouchEvent(event)
     }
 
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_MOVE -> {
@@ -199,43 +223,15 @@ class RequestView @JvmOverloads constructor(
         return true
     }
 
-    fun addAttachment(part: ContentPart) {
-        attachmentsAdapter.addItem(part)
-        updateAttachmentsVisibility()
-    }
-
-    private fun updateAttachmentsVisibility() {
-        attachmentsList.visibility = if (attachmentsAdapter.itemCount > 0) VISIBLE else GONE
-    }
-
-    fun clear() {
-        request = Request()
-        content.text.clear()
-        attachmentsAdapter.clear()
-        updateAttachmentsVisibility()
-    }
-
-    fun setGenerating(generating: Boolean) {
-        this.isGenerating = generating
-        if (generating) {
-            send.setImageResource(R.drawable.ic_stop)
-        } else {
-            send.setImageResource(R.drawable.ic_send)
-        }
-    }
-
     private fun updateSettingsHeight(height: Int) {
-        val params = settingsContainer.layoutParams
-        params.height = height
-        settingsContainer.layoutParams = params
+        settingsContainer.layoutParams.height = height
+        settingsContainer.requestLayout()
     }
 
     private fun animateHeightChange(from: Int, to: Int) {
-        val animator = ValueAnimator.ofInt(from, to)
-        animator.addUpdateListener { valueAnimator ->
-            updateSettingsHeight(valueAnimator.animatedValue as Int)
-        }
-        animator.duration = 250
-        animator.start()
+        ValueAnimator.ofInt(from, to).apply {
+            duration = 250
+            addUpdateListener { updateSettingsHeight(it.animatedValue as Int) }
+        }.start()
     }
 }

@@ -5,62 +5,47 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import mm.oasis.serialization.dto.FunctionCall
-import mm.oasis.serialization.dto.Message
-import mm.oasis.serialization.dto.MessageContent
-import mm.oasis.serialization.dto.Request
-import mm.oasis.serialization.dto.ToolCall
-import mm.oasis.serialization.dto.ToolCallChunk
+import mm.oasis.serialization.dto.*
 
+private const val MAX_ITER = 4
 
-const val MAX_ITER = 4
-
-class ToolCallAccumulator(val index: Int) {
-    var type: String? = null
-    var functionName = ""
-    var arguments = ""
-
-    var id = ""
-
-    fun applyDelta(delta: ToolCallChunk) {
-        delta.id?.let { id += it }
-        delta.type?.let { type = it }
-        delta.function?.name?.let { functionName += it }
-        delta.function?.arguments?.let { arguments += it }
-    }
-
-    fun toToolCall(): ToolCall = ToolCall(id, type, FunctionCall(functionName, arguments))
-}
-
-class Accumulator {
+private class Acc {
     var content = ""
     var reasoning = ""
-    val toolCalls = mutableListOf<ToolCallAccumulator>()
+    val toolCalls = mutableListOf<ToolCallAcc>()
 
     fun appendToolCalls(delta: ToolCallChunk) {
         var acc = toolCalls.find { it.index == delta.index }
         if (acc == null) {
-            acc = ToolCallAccumulator(delta.index)
+            acc = ToolCallAcc(delta.index)
             toolCalls.add(acc)
         }
         acc.applyDelta(delta)
     }
 
-    fun toMessage(): Message {
-        return Message(
-            Message.MessageRole.ASSISTANT,
-            MessageContent.Text(content),
-            reasoning.ifEmpty { null },
-            toolCalls.map { it.toToolCall() }.ifEmpty { null }
-        )
+    fun toMessage(): Message = Message(
+        Message.MessageRole.ASSISTANT,
+        MessageContent.Text(content),
+        reasoning.ifEmpty { null },
+        toolCalls.map { it.toToolCall() }.ifEmpty { null }
+    )
+
+    class ToolCallAcc(val index: Int) {
+        var type: String? = null
+        var functionName = ""
+        var arguments = ""
+        var id = ""
+
+        fun applyDelta(delta: ToolCallChunk) {
+            delta.id?.let { id += it }
+            delta.type?.let { type = it }
+            delta.function?.name?.let { functionName += it }
+            delta.function?.arguments?.let { arguments += it }
+        }
+
+        fun toToolCall(): ToolCall = ToolCall(id, type, FunctionCall(functionName, arguments))
     }
 }
-
-data class ResponseFlow(
-    val content: String = "",
-    val reasoning: String = "",
-    val toolCalls: List<ToolCall> = listOf()
-)
 
 object Agent {
     var isGenerating = false
@@ -69,7 +54,7 @@ object Agent {
         ApiClient.stop()
     }
 
-    fun use(req: Request): Flow<ResponseFlow> = channelFlow {
+    fun use(req: Request): Flow<Message.Flow> = channelFlow {
         isGenerating = true
 
         var count = 0
@@ -78,7 +63,7 @@ object Agent {
 
         do {
             req.messages = messages
-            val acc = Accumulator()
+            val acc = Acc()
             println(req.messages)
             ApiClient.generateTextStream(req).collect { chunk ->
                 val c = chunk.choices[0].delta.content ?: ""
@@ -89,14 +74,13 @@ object Agent {
                 chunk.choices[0].delta.toolCalls?.forEach { acc.appendToolCalls(it) }
 
                 if (c.isNotEmpty() || r.isNotEmpty())
-                    send(ResponseFlow(c, r))
+                    send(Message.Flow(c, r))
             }
-            if (acc.toolCalls.isEmpty() || !isGenerating) break
+            if (acc.toolCalls.isEmpty() || !isGenerating) break  // дальше ТОЛЬКО обработка инструментов
 
             messages.add(acc.toMessage())
-
-            send(ResponseFlow(
-                reasoning = "\n\n",
+            send(Message.Flow(
+                reasoning = "\n\n" + acc.toolCalls.joinToString { "use ${it.functionName}" },
                 toolCalls = acc.toolCalls.map { it.toToolCall() }
             ))
 
@@ -116,7 +100,7 @@ object Agent {
             messages.addAll(results)
 
             count++
-        } while (true)
+        } while (MAX_ITER > count)
 
         isGenerating = false
         // isGenerating дополнительно выключается в ChatFragment, ибо там находится обработчик ошибкок

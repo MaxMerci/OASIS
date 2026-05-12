@@ -1,8 +1,6 @@
 package mm.oasis.remote.tools
 
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -12,9 +10,6 @@ import mm.oasis.serialization.dto.JsonSchema
 import mm.oasis.serialization.dto.JsonSchemaProperty
 import mm.oasis.serialization.dto.Tool
 import org.jsoup.Jsoup
-import org.jsoup.nodes.Document
-import java.net.URLDecoder
-import java.nio.charset.StandardCharsets
 import kotlin.math.min
 
 object WebSearch : ToolI {
@@ -31,7 +26,7 @@ object WebSearch : ToolI {
         return Tool(
             function = FunctionDefinition(
                 name = "web_search",
-                description = "Web search",
+                description = "Web search. Never use a function twice in a row, even if no results are found, use what you can find.",
                 parameters = JsonSchema(
                     type = "object",
                     properties = mapOf(
@@ -54,72 +49,53 @@ object WebSearch : ToolI {
             execute = { args ->
                 val args = json.decodeFromString<Args>(args)
 
-                val results = coroutineScope {
-                    searchLinks(args.query, args.sources, args.max).map { link ->
-                        async(Dispatchers.IO) {
-                            try {
-                                val doc = Jsoup.connect(link)
-                                    .userAgent("Mozilla/5.0")
-                                    .timeout(5_000)
-                                    .get()
-
-                                val raw = DocumentRetriever.clearDoc(doc)
-                                val relevancePrep = DocumentRetriever.create(raw)
-                                val relevant = relevancePrep.retrieve(args.query)
-
-                                if (relevant.isNotEmpty()) {
-                                    "$link\n" + relevant.joinToString("\n") { it.trimIndent() } + "\n"
-                                } else null
-                            } catch (e: Exception) {
-                                null
-                            }
-                        }
-                    }.awaitAll()
+                val result = coroutineScope {
+                    search(
+                        args.query,
+                        args.sources,
+                        min(5, args.max)
+                    )
                 }
-                results.filterNotNull().joinToString("\n")
+
+                result.entries.joinToString(separator="\n") { it.key + ": " + it.value}
             }
         )
     }
 
-    suspend fun searchLinks(
-        query: String,
+    suspend fun search(
+        q: String,
         sources: List<String> = emptyList(),
         max: Int = 3
-    ): List<String> = withContext(Dispatchers.IO) {
-        val max = min(5, max)
-        val siteFilter = if (sources.isNotEmpty()) {
-            sources.joinToString(" OR ") { "site:$it" }
-        } else ""
+    ): Map<String, String> = withContext(Dispatchers.IO) {
+        val sourcesBody = sources.joinToString(" OR ") { "site:$it" }
+        val query = if (sourcesBody.isNotEmpty()) "$q $sourcesBody" else q
 
-        val finalQuery = if (siteFilter.isNotEmpty()) {
-            "$query $siteFilter"
-        } else {
-            query
-        }
-
-        val url = "https://duckduckgo.com/html/?q=" + finalQuery.replace(" ", "+")
+        val url = "https://duckduckgo.com/html/?q=" + query.replace(" ", "+")
         val doc = Jsoup.connect(url)
             .userAgent("Mozilla/5.0")
             .timeout(10000)
             .get()
 
-        val links = mutableListOf<String>()
+        val map = mutableMapOf<String, String>()
+
         val results = doc.select("a.result__a").filter { it.hasText() }.take(max)
+        val snippets = doc.select("a.result__snippet").filter { it.hasText() }.take(max)
 
-        for (element in results) {
-            val href = element.attr("href")
+        results.zip(snippets).forEach { (result, snippet) ->
+            val rawHref = snippet.attr("href")
+            val cleanUrl = rawHref
+                .substringAfter("uddg=")
+                .substringBefore("&")
+                .let { java.net.URLDecoder.decode(it, "UTF-8") }
 
-            val cleanLink = if (href.contains("duckduckgo.com/l/?uddg=")) {
-                val encodedUrl = href.substringAfter("uddg=")
-                    .substringBefore("&")
-                URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.toString())
-            } else {
-                href
+            val title = result.text()
+            val snippetText = snippet.text()
+
+            if (cleanUrl.isNotEmpty()) {
+                map["$cleanUrl ($title)"] = snippetText
             }
-
-            links.add(cleanLink)
         }
 
-        links
+        map
     }
 }

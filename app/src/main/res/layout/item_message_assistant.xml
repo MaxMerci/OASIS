@@ -66,21 +66,10 @@
     </FrameLayout>
 
     <TextView
-        android:text="TOOL USE"
-        android:id="@+id/toolsUse"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="13sp"
-        android:layout_marginLeft="15dp"
-        android:visibility="gone"
-        android:textColor="@color/hint"/>
-
-    <TextView
         android:text="CONTENT"
         android:id="@+id/content"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:maxWidth="280dp"
         android:paddingLeft="12dp"
         android:paddingTop="3dp"
         android:paddingRight="12dp"
