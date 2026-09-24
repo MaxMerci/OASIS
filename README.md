@@ -24,7 +24,7 @@ If you are not aware: almost all modern LLM APIs inherit the same structure crea
 - **profile system**: You just specify your key and endpoint and you can choose.
 - **viewing models**: You can select and view the models provided by the selected API.
 - **chats management**: To add a chat, drag the list down to delete it, just swipe the chat behind the list.
-- **web search**: The tool is built into the agent and can be enabled in the request parameters window. It's based on the embedding model, and the application essentially has its own engine.
+- **web search**: The tool is built into the agent and can be enabled in the request parameters window. It uses DuckDuckGo search results (titles, links and snippets), no API keys needed.
 
 [not supported (for now)]
 
@@ -55,7 +55,7 @@ I really love Rain World (© Videocult) and I decided that I want to make a masc
 - **система профилей**: Вы просто указываете свой ключ и конечную точку и можете выбирать.
 - **просмотр моделей**: Вы можете выбирать и просматривать модели, предоставляемые выбранным API.
 - **управление чатами**: Чтобы добавить чат, перетащите список вниз, чтобы удалить его, просто свайпните его за список.
-- **веб поиск**: инструмент встроенный в агента, он влкючается в окошке с параметрами запроса. Он основан на embedding модели, в приложении практически свой движок.
+- **веб поиск**: инструмент встроенный в агента, он включается в окошке с параметрами запроса. Использует выдачу DuckDuckGo (заголовки, ссылки и сниппеты), ключи не нужны.
 
 [не поддерживается (пока что)]
 

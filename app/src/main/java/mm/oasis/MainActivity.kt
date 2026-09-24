@@ -5,7 +5,10 @@ import java.lang.reflect.Field
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import android.view.View
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
@@ -26,16 +29,33 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
-        super.onCreate(savedInstanceState)
-
+        // до super.onCreate: при восстановлении процесса фрагменты создаются уже там и лезут в репозитории
         Oasis.init(this)
+        super.onCreate(savedInstanceState)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_main)
+        applyWindowInsets()
 
         setupViewPager()
         setupBackPressedHandling()
         checkForUpdates()
+    }
+
+    /**
+     * На Android 15+ (targetSdk 35+) приложение всегда рисуется edge-to-edge и adjustResize
+     * сам по себе больше не поднимает контент над клавиатурой, отступы надо ставить руками.
+     */
+    private fun applyWindowInsets() {
+        val root = findViewById<View>(R.id.root)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
+            val bars = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            v.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, ime.bottom))
+            WindowInsetsCompat.CONSUMED
+        }
     }
 
     private fun checkForUpdates() {

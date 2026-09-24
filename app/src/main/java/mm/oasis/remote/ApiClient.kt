@@ -14,10 +14,8 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.readUTF8Line
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.*
-import mm.oasis.serialization.dto.EmbedRequest
-import mm.oasis.serialization.dto.EmbedResp
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
 import okhttp3.Protocol
 import java.util.concurrent.TimeUnit
 
@@ -28,8 +26,6 @@ private val json = kotlinx.serialization.json.Json {
 }
 
 object ApiClient {
-    private var generationJob: Job? = null
-
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation) { json(json) }
 
@@ -45,63 +41,46 @@ object ApiClient {
         }
 
         defaultRequest {
+            // лямбда выполняется на каждый запрос, так что ключ всегда от текущего профиля
             header(HttpHeaders.Authorization, "Bearer ${ProfileRepository.currentProfile?.apiKey}")
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
             header("Cache-Control", "no-cache")
-            header("Expect", "")
         }
     }
 
+    /**
+     * Потоковая генерация (SSE). Ошибки API не глотаются, а летят исключением [ApiException],
+     * отмена корутины (кнопка стоп) прерывает чтение потока.
+     */
     fun generateTextStream(request: Request): Flow<ChatCompletionChunk> = channelFlow {
-        generationJob = coroutineContext[Job]
+        val profile = ProfileRepository.currentProfile ?: throw ApiException("PROFILE NOT SELECTED")
+        val body = request.copy(
+            stream = true,
+            messages = request.messages.map { it.forApi() },
+            tools = request.tools?.ifEmpty { null }
+        )
 
-        try {
-            client.preparePost("${ProfileRepository.currentProfile!!.endPoint.trimEnd('/')}/chat/completions") {
-                setBody(request.copy(stream = true))
-            }.execute { response ->
-                if (!response.status.isSuccess()) throw Exception(response.bodyAsText())
-
-                val channel = response.bodyAsChannel()
-                while (!channel.isClosedForRead) {
-                    val line = channel.readUTF8Line() ?: break
-
-                    if (line.startsWith("data: ")) {
-                        val data = line.removePrefix("data: ").trim()
-                        if (data == "[DONE]") return@execute
-
-                        val chunk = json.decodeFromString<ChatCompletionChunk>(data)
-                        send(chunk)
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            val chunk = ChatCompletionChunk(
-                "", listOf(
-                    ChatCompletionChunk.ChunkChoice(
-                        0, ChatCompletionChunk.Delta(content = e.message)
-                    )
-                )
-            )
-            send(chunk)
-        } finally {
-            generationJob = null
-        }
-    }
-
-    fun stop() {
-        generationJob?.cancel()
-    }
-
-    suspend fun embedding(req: EmbedRequest): EmbedResp {
-        val response: HttpResponse = client.post(
-            "https://lamhieu-lightweight-embeddings.hf.space/v1/embeddings"
-        ) {
-            headers.remove(HttpHeaders.Authorization)
+        client.preparePost("${profile.endPoint.trimEnd('/')}/chat/completions") {
             contentType(ContentType.Application.Json)
-            accept(ContentType.Application.Json)
-            setBody(req)
+            setBody(body)
+        }.execute { response ->
+            if (!response.status.isSuccess()) {
+                throw ApiException("${response.status.value}: ${response.bodyAsText()}")
+            }
+
+            val channel = response.bodyAsChannel()
+            while (true) {
+                val line = channel.readUTF8Line() ?: break
+                if (!line.startsWith("data:")) continue  // пустые строки, ": keep-alive" и т.п.
+
+                val data = line.removePrefix("data:").trim()
+                if (data == "[DONE]") break
+                if (data.isEmpty()) continue
+
+                val chunk = json.decodeFromString<ChatCompletionChunk>(data)
+                chunk.error?.let { throw ApiException(it.toString()) }
+                send(chunk)
+            }
         }
-        return response.body<EmbedResp>()
     }
 
     suspend fun fetchModels(): LLMResponse {
@@ -126,7 +105,6 @@ object ApiClient {
             "claude" to "${favicon}https://claude.ai",
             "google" to "${favicon}https://google.com",
             "meta" to "${favicon}https://chatgpt.com",
-            "mistral" to "${favicon}https://mistral.ai",
             "mistral" to "${favicon}https://mistral.ai",
             "cohere" to "${favicon}https://cohere.com/",
             "grok" to "${favicon}https://grok.com/",
@@ -156,3 +134,5 @@ object ApiClient {
         return defaultAvatar
     }
 }
+
+class ApiException(message: String) : Exception(message)

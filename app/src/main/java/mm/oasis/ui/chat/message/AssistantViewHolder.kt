@@ -38,6 +38,9 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
     }
 
     private fun expand(view: View) {
+        view.animate().cancel()
+        // после collapse() у вью остается высота 0, а холдеры переиспользуются
+        view.layoutParams.height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT
         view.alpha = 0f
         view.visibility = VISIBLE
         view.animate()

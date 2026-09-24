@@ -85,9 +85,12 @@ abstract class Repository<T>(
     fun save() {
         val stateToSave = _state.value
         repositoryScope.launch(Dispatchers.IO) {
-            storage.put(name, stateToSave.items, listSerializer)
-            storage.put("current_index", stateToSave.currentIndex, Int.serializer())
-            storage.flush()
+            // EncryptedFile пишется через delete + create, два save() одновременно = потерянный файл
+            synchronized(storage) {
+                storage.put(name, stateToSave.items, listSerializer)
+                storage.put("current_index", stateToSave.currentIndex, Int.serializer())
+                storage.flush()
+            }
         }
     }
 }

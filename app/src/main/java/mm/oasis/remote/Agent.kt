@@ -1,5 +1,6 @@
 package mm.oasis.remote
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -26,8 +27,7 @@ private class Acc {
     fun toMessage(): Message = Message(
         Message.MessageRole.ASSISTANT,
         MessageContent.Text(content),
-        reasoning.ifEmpty { null },
-        toolCalls.map { it.toToolCall() }.ifEmpty { null }
+        toolCalls = toolCalls.map { it.toToolCall() }.ifEmpty { null }
     )
 
     class ToolCallAcc(val index: Int) {
@@ -43,66 +43,70 @@ private class Acc {
             delta.function?.arguments?.let { arguments += it }
         }
 
-        fun toToolCall(): ToolCall = ToolCall(id, type, FunctionCall(functionName, arguments))
+        fun toToolCall(): ToolCall = ToolCall(id, type ?: "function", FunctionCall(functionName, arguments))
     }
 }
 
+/**
+ * Цикл агента: запрос -> (вызовы инструментов -> результаты -> запрос)* -> ответ.
+ * Остановка генерации = отмена корутины, которая собирает этот Flow.
+ */
 object Agent {
-    var isGenerating = false
+    fun use(request: Request): Flow<Message.Flow> = channelFlow {
+        val req = request.copy(tools = request.tools?.ifEmpty { null })
+        val messages = req.messages.toMutableList()
 
-    fun stop() {
-        ApiClient.stop()
-    }
-
-    fun use(req: Request): Flow<Message.Flow> = channelFlow {
-        isGenerating = true
-
-        var count = 0
-
-        val messages = req.messages.map { it.copy() }.toMutableList()
-
-        do {
+        for (iteration in 0 until MAX_ITER) {
+            // на последней итерации инструменты не даем, модель обязана ответить текстом
+            if (iteration == MAX_ITER - 1) req.tools = null
             req.messages = messages
+
             val acc = Acc()
-            println(req.messages)
             ApiClient.generateTextStream(req).collect { chunk ->
-                val c = chunk.choices[0].delta.content ?: ""
-                val r = chunk.choices[0].delta.reasoning ?: ""
+                val delta = chunk.choices.firstOrNull()?.delta ?: return@collect
+                val c = delta.content.orEmpty()
+                val r = delta.reasoning.orEmpty()
 
                 acc.content += c
                 acc.reasoning += r
-                chunk.choices[0].delta.toolCalls?.forEach { acc.appendToolCalls(it) }
+                delta.toolCalls?.forEach { acc.appendToolCalls(it) }
 
-                if (c.isNotEmpty() || r.isNotEmpty())
-                    send(Message.Flow(c, r))
+                if (c.isNotEmpty() || r.isNotEmpty()) send(Message.Flow(c, r))
             }
-            if (acc.toolCalls.isEmpty() || !isGenerating) break  // дальше ТОЛЬКО обработка инструментов
+            if (acc.toolCalls.isEmpty()) break  // дальше ТОЛЬКО обработка инструментов
 
             messages.add(acc.toMessage())
             send(Message.Flow(
-                reasoning = "\n\n" + acc.toolCalls.joinToString { "use ${it.functionName}" },
+                reasoning = "\n\n" + acc.toolCalls.joinToString { "use ${it.functionName} ${it.arguments}" } + "\n\n",
                 toolCalls = acc.toolCalls.map { it.toToolCall() }
             ))
 
-            val jobs = acc.toolCalls.mapNotNull { call ->
-                val tool = ToolRegistry.getTool(call.functionName) ?: return@mapNotNull null
-                req.tools = req.tools!! - tool
+            // использованный инструмент убираем, иначе модели любят зацикливаться
+            val used = acc.toolCalls.map { it.functionName }.toSet()
+            req.tools = req.tools?.filter { it.function.name !in used }?.ifEmpty { null }
+
+            // на КАЖДЫЙ tool_call обязан быть ответ, иначе API вернет 400
+            val results = acc.toolCalls.map { call ->
                 async(Dispatchers.IO) {
-                    val result = tool.execute(call.arguments)
                     Message(
                         Message.MessageRole.TOOL,
-                        MessageContent.Text(result),
+                        MessageContent.Text(execute(call.functionName, call.arguments)),
                         toolCallId = call.id
                     )
                 }
-            }
-            val results = jobs.awaitAll()
+            }.awaitAll()
             messages.addAll(results)
+        }
+    }
 
-            count++
-        } while (MAX_ITER > count)
-
-        isGenerating = false
-        // isGenerating дополнительно выключается в ChatFragment, ибо там находится обработчик ошибкок
+    private suspend fun execute(name: String, arguments: String): String {
+        val tool = ToolRegistry.getTool(name) ?: return "Error: unknown tool '$name'"
+        return try {
+            tool.execute(arguments)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            "Error: ${e.message ?: e.toString()}"
+        }
     }
 }

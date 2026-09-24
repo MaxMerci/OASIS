@@ -19,6 +19,7 @@ import mm.oasis.R
 import mm.oasis.remote.ApiClient
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.LLMRaw
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import mm.oasis.repository.RepositoryState
 import mm.oasis.serialization.dto.LLMResponse
@@ -62,7 +63,7 @@ class ModelsFragment : Fragment() {
 
         modelsList.itemAnimator = null
 
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             ProfileRepository.state.collect { state ->
                 requireActivity().runOnUiThread {
                     val currentProfile = ProfileRepository.currentProfile
@@ -104,11 +105,21 @@ class ModelsFragment : Fragment() {
 
     fun loadModels() {
         viewLifecycleOwner.lifecycleScope.launch {
+            modelsAdapter.setModels(LLMResponse(emptyList()))
+            if (ProfileRepository.currentProfile == null) {
+                emptyView.text = "PROFILE NOT SELECTED"
+                emptyView.visibility = VISIBLE
+                modelsList.visibility = GONE
+                return@launch
+            }
             try {
-                modelsAdapter.setModels(LLMResponse(emptyList()))
                 val models = ApiClient.fetchModels()
                 modelsAdapter.setModels(models)
+                emptyView.text = "NO MODELS"
                 emptyView.visibility = if (models.data.isEmpty()) VISIBLE else GONE
+                modelsList.visibility = if (models.data.isEmpty()) GONE else VISIBLE
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 emptyView.text = e.toString()
                 emptyView.visibility = VISIBLE

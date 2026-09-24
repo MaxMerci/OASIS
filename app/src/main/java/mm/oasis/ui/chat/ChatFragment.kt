@@ -15,7 +15,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -24,7 +26,6 @@ import mm.oasis.remote.Agent
 import mm.oasis.repository.ChatRepository
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.*
-import kotlin.collections.plus
 
 class ChatFragment : Fragment() {
 
@@ -32,6 +33,8 @@ class ChatFragment : Fragment() {
     private val messagesAdapter = MessagesAdapter()
     private lateinit var messagesList: RecyclerView
     private lateinit var emptyView: TextView
+
+    private var generation: Job? = null
 
     private val pickFileLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { handleFileUri(it) }
@@ -53,17 +56,15 @@ class ChatFragment : Fragment() {
         messagesList.adapter = messagesAdapter
         (messagesList.itemAnimator as? DefaultItemAnimator)?.supportsChangeAnimations = false  // это был ключ к решению всех моих проблем, просто памятка
 
-        input.onSend = { r -> requireActivity().runOnUiThread { sendMessage(r) } }
+        input.onSend = ::sendMessage
+        input.onStop = { generation?.cancel() }
         input.onAddAttachment = {
             pickFileLauncher.launch("*/*")
         }
 
         lifecycleScope.launch {
             ChatRepository.state.collectLatest {
-                requireActivity().runOnUiThread { 
-                    updateMessages()
-                    updateEmptyViewVisibility()
-                }
+                updateMessages()
             }
         }
 
@@ -129,22 +130,16 @@ class ChatFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     fun updateMessages() {
-        requireActivity().runOnUiThread {
-            messagesAdapter.notifyDataSetChanged()
-            updateEmptyViewVisibility()
-            if (messagesAdapter.itemCount > 0) {
-                messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
-            }
+        if (!::messagesList.isInitialized) return
+        messagesAdapter.notifyDataSetChanged()
+        updateEmptyViewVisibility()
+        if (messagesAdapter.itemCount > 0) {
+            messagesList.smoothScrollToPosition(messagesAdapter.itemCount - 1)
         }
     }
 
-    @SuppressLint("NotifyDataSetChanged")
     private fun sendMessage(request: Request) {
-        if (Agent.isGenerating) {
-            Agent.stop()
-            input.setGenerating(false)
-            return
-        }
+        if (generation?.isActive == true) return
 
         val errorText = when {
             ProfileRepository.currentProfile == null -> "PROFILE NOT SELECTED"
@@ -156,52 +151,58 @@ class ChatFragment : Fragment() {
             return
         }
 
-        lifecycleScope.launch {
-            input.setGenerating(true)
+        input.clear()
+        val currentChat = ChatRepository.currentChat
 
-            val currentChat = ChatRepository.currentChat
+        // модели уходит вся история чата, а не только последнее сообщение
+        val history = currentChat.messages
+            .filter { it.role != Message.MessageRole.ASSISTANT || it.display.isNotBlank() }
+            .map { it.copy(toolCalls = null) } // результаты инструментов в чате не хранятся
+        if (currentChat.messages.isEmpty()) {
+            // новый чат называем по первому сообщению, а не "Chat N"
+            request.messages.lastOrNull()?.display?.lineSequence()?.firstOrNull { it.isNotBlank() }
+                ?.let { currentChat.name = it.trim().take(32) }
+        }
+        currentChat.messages += request.messages
 
-            currentChat.messages += request.messages
-            updateMessages()
+        val assistant = Message(
+            avatarUrl = ProfileRepository.currentProfile?.model?.avatarUrl,
+            role = Message.MessageRole.ASSISTANT,
+            content = MessageContent.Parts(listOf(ContentPart.TextPart(""))),
+            reasoning = "",
+            name = request.model,
+        )
+        currentChat.messages += assistant
+        updateMessages()
 
+        input.setGenerating(true)
+        generation = lifecycleScope.launch {
             try {
-                var messageInserted = false
-                Agent.use(request).collect { flow ->
-                    if (!messageInserted) {
-                        currentChat.messages += Message(
-                            avatarUrl = ProfileRepository.currentProfile?.model?.avatarUrl,
-                            role = Message.MessageRole.ASSISTANT,
-                            content = MessageContent.Parts(
-                                listOf(ContentPart.TextPart(""))
-                            ),
-                            reasoning = "",
-                            name = request.model,
-                        )
-                        updateMessages()
-                        messageInserted = true
-                    }
-
-                    val message = currentChat.messages.last()
-                    message.streamDisplay(flow.content)
-                    message.reasoning = (message.reasoning ?: "") + flow.reasoning
-                    message.toolCalls = (message.toolCalls ?: listOf()) + flow.toolCalls
-
-                    requireActivity().runOnUiThread {
-                        messagesAdapter.notifyItemChanged(messagesAdapter.itemCount - 1)
-                    }
+                Agent.use(request.copy(messages = history + request.messages)).collect { flow ->
+                    assistant.streamDisplay(flow.content)
+                    assistant.reasoning = (assistant.reasoning ?: "") + flow.reasoning
+                    notifyLastMessageChanged()
                 }
+            } catch (e: CancellationException) {
+                // нажали стоп - оставляем то, что успело прийти
             } catch (e: Exception) {
-                print("ОШИБКА: {${e}}")
-                currentChat.messages.last().streamDisplay(" ...$e")
-                Agent.isGenerating = false
-                requireView().let {
-                    Snackbar.make(it, e.toString(), Snackbar.LENGTH_SHORT).show()
-                }
+                e.printStackTrace()
+                assistant.streamDisplay("\n\n**[ERROR]:** ${e.message ?: e.toString()}")
+                view?.let { Snackbar.make(it, e.message ?: e.toString(), Snackbar.LENGTH_SHORT).show() }
             } finally {
+                if (assistant.display.isBlank() && assistant.reasoning.isNullOrBlank()) {
+                    currentChat.messages -= assistant
+                }
                 input.setGenerating(false)
-                ChatRepository.save()
+                // пустое обновление: сохраняет чат и дергает state, чтобы список чатов увидел новое имя
+                ChatRepository.updateItem(ChatRepository.currentIndex) { it }
                 updateMessages()
             }
         }
+    }
+
+    private fun notifyLastMessageChanged() {
+        if (!::messagesList.isInitialized) return
+        messagesAdapter.notifyItemChanged(messagesAdapter.itemCount - 1)
     }
 }
