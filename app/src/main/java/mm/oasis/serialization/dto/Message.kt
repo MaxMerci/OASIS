@@ -20,6 +20,21 @@ data class Message(
         val toolCalls: List<ToolCall> = emptyList()
     )
 
+    /**
+     * Копия сообщения только с теми полями, которые понимает OpenAI-совместимый API.
+     * avatar_url, name (там домен/id модели), reasoning и file_name — чисто UI-шные,
+     * строгие провайдеры (тот же OpenAI) отвечают на них 400.
+     */
+    fun forApi(): Message = Message(
+        role = role,
+        content = when (val c = content) {
+            is MessageContent.Parts -> MessageContent.Parts(c.parts.map { it.withoutFileName() })
+            else -> c
+        },
+        toolCalls = toolCalls?.ifEmpty { null },
+        toolCallId = toolCallId
+    )
+
     fun streamDisplay(streamContent: String) {
         val currentContent = content
         if (currentContent is MessageContent.Parts) {

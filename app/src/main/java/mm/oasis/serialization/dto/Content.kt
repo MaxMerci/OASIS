@@ -17,6 +17,12 @@ sealed class MessageContent {
 sealed class ContentPart {
     abstract val fileName: String?
 
+    fun withoutFileName(): ContentPart = when (this) {
+        is TextPart -> copy(fileName = null)
+        is ImagePart -> copy(fileName = null)
+        is AudioPart -> copy(fileName = null)
+    }
+
     @Serializable
     @SerialName("text")
     data class TextPart(

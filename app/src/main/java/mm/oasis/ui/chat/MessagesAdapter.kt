@@ -98,6 +98,11 @@ class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
                 expand(holder.itemView)
             }
             lastAnimatedPos = position
+        } else if (holder.itemView.visibility != View.VISIBLE) {
+            // холдер создан заново для старой позиции (скролл, смена чата) - анимация уже была, просто показываем
+            holder.itemView.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
+            holder.itemView.alpha = 1f
+            holder.itemView.visibility = View.VISIBLE
         }
     }
 

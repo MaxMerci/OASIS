@@ -71,9 +71,6 @@ dependencies {
 
     // Parse
     implementation(libs.jsoup)
-    implementation("ai.djl:api:0.26.0")
-    implementation("ai.djl.huggingface:tokenizers:0.26.0")
-    implementation("ai.djl.onnxruntime:onnxruntime-engine:0.26.0")
 
     // Markdown
     implementation(libs.markwon.core)

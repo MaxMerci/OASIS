@@ -2,15 +2,13 @@ package mm.oasis.serialization.dto
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class Request(
     var messages: List<Message> = emptyList(),
     var model: String? = null,
     val stream: Boolean = true, // не надо это трогать, мое
-    var temperature: Double? = 1.0,
+    var temperature: Double? = null,
     @SerialName("top_p") var topP: Double? = null,
     @SerialName("max_tokens") var maxTokens: Int? = null,
     @SerialName("include_reasoning") var includeReasoning: Boolean? = null,

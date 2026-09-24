@@ -4,27 +4,31 @@ import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
-import android.view.*
-import android.widget.*
+import android.view.LayoutInflater
+import android.view.MotionEvent
+import android.view.View
+import android.view.ViewConfiguration
+import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import kotlinx.coroutines.runBlocking
 import mm.oasis.R
-import mm.oasis.remote.Agent
-import mm.oasis.remote.ApiClient
-import mm.oasis.remote.ToolRegistry
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.*
 import mm.oasis.ui.chat.message.AttachmentsAdapter
-import kotlin.math.*
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
-class RequestView(
+class RequestView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
 ) : LinearLayout(context, attrs) {
     /* MAIN */
-    var request = Request()
     var onSend: ((Request) -> Unit)? = null
+    var onStop: (() -> Unit)? = null
     var onAddAttachment: (() -> Unit)? = null
 
     /* UI REFERENCES */
@@ -123,7 +127,6 @@ class RequestView(
     }
 
     fun clear() {
-        request = Request()
         content.text.clear()
         attachmentsAdapter.clear()
         updateAttachmentsVisibility()
@@ -141,8 +144,8 @@ class RequestView(
     }
 
     private fun onClickSend() {
-        if (Agent.isGenerating) {
-            onSend?.invoke(request)
+        if (isGenerating) {
+            onStop?.invoke()
             return
         }
 
@@ -150,43 +153,42 @@ class RequestView(
         val attachments = attachmentsAdapter.getItems()
         if (contentText.isBlank() && attachments.isEmpty()) return
 
-        request.apply {
-            model = ProfileRepository.currentProfile?.model?.id ?: "MODEL NOT SELECTED"
+        val profile = ProfileRepository.currentProfile
+        val messages = mutableListOf<Message>()
+
+        // текстовые файлы уходят отдельными system сообщениями
+        attachments.filterIsInstance<ContentPart.TextPart>().forEach { part ->
+            messages += Message(
+                role = Message.MessageRole.SYSTEM,
+                content = MessageContent.Parts(listOf(part))
+            )
+        }
+
+        val userParts = mutableListOf<ContentPart>()
+        if (contentText.isNotBlank()) userParts += ContentPart.TextPart(contentText)
+        userParts += attachments.filter { it !is ContentPart.TextPart }
+
+        messages += Message(
+            avatarUrl = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${profile?.endPoint}",
+            role = Message.MessageRole.USER,
+            content = MessageContent.Parts(userParts),
+            name = profile?.endpointDomain() ?: "YOU"
+        )
+
+        val request = Request(
+            messages = messages,
+            model = profile?.model?.id,
+            temperature = temperatureField.text.toString().trim().toDoubleOrNull(),
+            maxTokens = maxTokensField.text.toString().trim().toDoubleOrNull()?.toInt(),
             includeReasoning = when (reasoningMode) {
                 ReasoningMode.AUTO -> null
                 ReasoningMode.ENABLED -> true
                 ReasoningMode.DISABLED -> false
-            }
-            maxTokens = temperatureField.text.toString().takeIf { it.isNotBlank() }?.toIntOrNull()
-            topP = maxTokensField.text.toString().takeIf { it.isNotBlank() }?.toDoubleOrNull()
-            tools = toolsAdapter.enabledTools
-
-            val textParts = attachments.filterIsInstance<ContentPart.TextPart>()
-            val mediaParts = attachments.filter { it !is ContentPart.TextPart }
-
-            textParts.forEach { part ->
-                messages += Message(
-                    role = Message.MessageRole.SYSTEM,
-                    content = MessageContent.Parts(listOf(part))
-                )
-            }
-
-            val userContentParts = mutableListOf<ContentPart>()
-            if (contentText.isNotBlank()) {
-                userContentParts.add(ContentPart.TextPart(contentText))
-            }
-            userContentParts.addAll(mediaParts)
-
-            messages += Message(
-                avatarUrl = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${ProfileRepository.currentProfile?.endPoint}",
-                role = Message.MessageRole.USER,
-                content = MessageContent.Parts(userContentParts),
-                name = ProfileRepository.currentProfile?.endpointDomain() ?: "YOU"
-            )
-        }
+            },
+            tools = toolsAdapter.enabledTools.toList().ifEmpty { null }
+        )
 
         onSend?.invoke(request)
-        clear()
     }
 
     private fun updateAttachmentsVisibility() {
