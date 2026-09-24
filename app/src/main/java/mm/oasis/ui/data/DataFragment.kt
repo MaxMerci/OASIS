@@ -168,8 +168,8 @@ class DataFragment : Fragment() {
                 .addField(DialogField("apiKey", "API KEY", FieldType.TEXT, true))
                 .onOk { values ->
                     val newProfile = ProfileData(
-                        endPoint = values["endPoint"] ?: "",
-                        apiKey = values["apiKey"] ?: ""
+                        endPoint = values["endPoint"]?.trim().orEmpty(),
+                        apiKey = values["apiKey"]?.trim().orEmpty()
                     )
                     ProfileRepository.addAt(0, newProfile)
                     profilesAdapter.notifyDataSetChanged()
@@ -195,9 +195,12 @@ class DataFragment : Fragment() {
                 }
             )
             .onOk { values ->
-                profile.endPoint = values["endPoint"] ?: profile.endPoint
-                profile.apiKey = values["apiKey"] ?: profile.apiKey
-                ProfileRepository.save()
+                val endPoint = values["endPoint"]?.trim().orEmpty().ifEmpty { profile.endPoint }
+                val apiKey = values["apiKey"]?.trim().orEmpty().ifEmpty { profile.apiKey }
+                ProfileRepository.updateItem(pos) {
+                    // другой эндпоинт = другой список моделей, старая модель там может не существовать
+                    it.copy(endPoint = endPoint, apiKey = apiKey, model = if (endPoint == it.endPoint) it.model else null)
+                }
                 profilesAdapter.notifyDataSetChanged()
             }
             .show()

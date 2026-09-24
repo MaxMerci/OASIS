@@ -126,10 +126,6 @@ class ModalDialogBuilder(private val context: Context) {
             b.text = btn.text
             b.setOnClickListener {
                 btn.onClick?.invoke()
-
-                val nullMap = fields.associate { it.key to null }
-                onOk?.invoke(nullMap)
-
                 dialog.dismiss()
             }
 

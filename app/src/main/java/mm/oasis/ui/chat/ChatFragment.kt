@@ -158,6 +158,11 @@ class ChatFragment : Fragment() {
         val history = currentChat.messages
             .filter { it.role != Message.MessageRole.ASSISTANT || it.display.isNotBlank() }
             .map { it.copy(toolCalls = null) } // результаты инструментов в чате не хранятся
+        if (currentChat.messages.isEmpty()) {
+            // новый чат называем по первому сообщению, а не "Chat N"
+            request.messages.lastOrNull()?.display?.lineSequence()?.firstOrNull { it.isNotBlank() }
+                ?.let { currentChat.name = it.trim().take(32) }
+        }
         currentChat.messages += request.messages
 
         val assistant = Message(
@@ -189,7 +194,8 @@ class ChatFragment : Fragment() {
                     currentChat.messages -= assistant
                 }
                 input.setGenerating(false)
-                ChatRepository.save()
+                // пустое обновление: сохраняет чат и дергает state, чтобы список чатов увидел новое имя
+                ChatRepository.updateItem(ChatRepository.currentIndex) { it }
                 updateMessages()
             }
         }
