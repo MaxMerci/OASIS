@@ -16,6 +16,8 @@ class SystemViewHolder(view: View) : RecyclerView.ViewHolder(view) {
     @SuppressLint("SetTextI18n")
     fun bind(message: Message, markwon: Markwon?) {
         nameView.text = "[${ChatRepository.currentChat.name}]:"
-        markwon?.setMarkdown(contentView, message.display)
+        markwon?.setMarkdown(contentView, message.display) ?: run {
+            contentView.text = message.display
+        }
     }
 }

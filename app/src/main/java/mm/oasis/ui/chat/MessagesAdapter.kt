@@ -1,17 +1,11 @@
 package mm.oasis.ui.chat
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.util.TypedValue
 import android.view.LayoutInflater
-import android.view.View
-import android.view.View.GONE
 import android.view.ViewGroup
-import android.view.animation.DecelerateInterpolator
 import androidx.core.content.res.ResourcesCompat
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.Markwon
@@ -20,8 +14,8 @@ import io.noties.markwon.ext.latex.JLatexMathPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.inlineparser.MarkwonInlineParserPlugin
 import mm.oasis.R
-import mm.oasis.repository.ChatRepository
 import mm.oasis.serialization.dto.Message
+import mm.oasis.serialization.storage.ChatData
 import mm.oasis.ui.chat.message.AssistantViewHolder
 import mm.oasis.ui.chat.message.SystemViewHolder
 import mm.oasis.ui.chat.message.UserViewHolder
@@ -35,12 +29,48 @@ class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private const val TYPE_SYSTEM = 2
     }
 
-    private var lastAnimatedPos = -1
+    enum class Update { NONE, SWITCHED, INSERTED }
 
-    override fun getItemCount() = ChatRepository.currentChat.messages.size
+    /*
+     * Адаптер держит свой снимок списка, а не читает ChatRepository напрямую:
+     * иначе список меняется раньше notify* и RecyclerView ловит рассинхрон.
+     * Сообщения сравниваются по ссылке - текущее сообщение меняется на месте
+     * и обновляется точечно через notifyMessageChanged.
+     */
+    private var chat: ChatData? = null
+    private var items: List<Message> = emptyList()
+
+    @SuppressLint("NotifyDataSetChanged")
+    fun submit(newChat: ChatData): Update {
+        val newItems = newChat.messages.toList()
+        if (newChat !== chat) {
+            chat = newChat
+            items = newItems
+            notifyDataSetChanged()
+            return Update.SWITCHED
+        }
+
+        val oldItems = items
+        val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize() = oldItems.size
+            override fun getNewListSize() = newItems.size
+            override fun areItemsTheSame(o: Int, n: Int) = oldItems[o] === newItems[n]
+            override fun areContentsTheSame(o: Int, n: Int) = true
+        })
+        items = newItems
+        diff.dispatchUpdatesTo(this)
+        return if (newItems.any { new -> oldItems.none { it === new } }) Update.INSERTED else Update.NONE
+    }
+
+    fun notifyMessageChanged(message: Message) {
+        val index = items.indexOfFirst { it === message }
+        if (index != -1) notifyItemChanged(index)
+    }
+
+    override fun getItemCount() = items.size
 
     override fun getItemViewType(position: Int): Int {
-        return when (ChatRepository.currentChat.messages[position].role) {
+        return when (items[position].role) {
             Message.MessageRole.USER -> TYPE_USER
             Message.MessageRole.ASSISTANT -> TYPE_ASSISTANT
             else -> TYPE_SYSTEM
@@ -75,72 +105,20 @@ class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         }
 
         val inflater = LayoutInflater.from(parent.context)
-        val holder =  when (viewType) {
+        return when (viewType) {
             TYPE_USER -> UserViewHolder(inflater.inflate(R.layout.item_message_user, parent, false))
             TYPE_ASSISTANT -> AssistantViewHolder(inflater.inflate(R.layout.item_message_assistant, parent, false))
             else -> SystemViewHolder(inflater.inflate(R.layout.item_message_system, parent, false))
         }
-        holder.itemView.visibility = GONE
-        return holder
     }
 
-    @SuppressLint("RecyclerView")
+    // появление новых сообщений анимирует ItemAnimator у RecyclerView, руками высоту itemView не трогаем
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val message = ChatRepository.currentChat.messages[position]
+        val message = items[position]
         when (holder) {
             is UserViewHolder -> holder.bind(message, markwon)
             is AssistantViewHolder -> holder.bind(message, markwon)
             is SystemViewHolder -> holder.bind(message, markwon)
         }
-
-        if (position > lastAnimatedPos) {
-            holder.itemView.post {
-                expand(holder.itemView)
-            }
-            lastAnimatedPos = position
-        } else if (holder.itemView.visibility != View.VISIBLE) {
-            // холдер создан заново для старой позиции (скролл, смена чата) - анимация уже была, просто показываем
-            holder.itemView.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-            holder.itemView.alpha = 1f
-            holder.itemView.visibility = View.VISIBLE
-        }
-    }
-
-    private fun expand(view: View) {
-        view.measure(
-            View.MeasureSpec.makeMeasureSpec((view.parent as View).width, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        )
-
-        val targetHeight = view.measuredHeight
-
-        view.layoutParams.height = 0
-        view.alpha = 0f
-        view.requestLayout()
-        view.visibility = View.VISIBLE
-
-        val animator = ValueAnimator.ofInt(0, targetHeight)
-        animator.duration = 500L
-        animator.interpolator = DecelerateInterpolator()
-
-        animator.addUpdateListener {
-            val value = it.animatedValue as Int
-            view.layoutParams.height = value
-            view.requestLayout()
-        }
-
-        animator.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                view.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
-                view.requestLayout()
-            }
-        })
-
-        view.animate()
-            .alpha(1f)
-            .setDuration(500L)
-            .start()
-
-        animator.start()
     }
 }

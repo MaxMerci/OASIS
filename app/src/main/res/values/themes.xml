@@ -1,11 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <style name="Theme.OASIS" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- background & Text -->
         <item name="android:windowBackground">@color/bg</item>
-        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorPrimary">@color/text</item>
         <item name="colorControlNormal">@color/hint</item>
         <item name="android:textColor">@color/text</item>
+
+        <!-- system bars -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">@bool/light_system_bars</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">@bool/light_system_bars</item>
 
         <item name="windowSplashScreenBackground">@color/bg</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>

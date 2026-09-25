@@ -38,9 +38,6 @@ class ProfilesAdapter(
             else -> R.layout.item_profile
         }
         val view = LayoutInflater.from(parent.context).inflate(layout, parent, false)
-        if (viewType == TYPE_SELECTED) {
-            view.setBackgroundResource(R.drawable.ic_bg_g)
-        }
         return ProfileViewHolder(view)
     }
 
@@ -80,15 +77,14 @@ class ProfilesAdapter(
                     }
                 }
 
+                if (viewType == TYPE_SELECTED) itemView.setBackgroundResource(R.drawable.ic_bg_g)
+                else itemView.background = null
+
                 endPoint?.text = profile.endPoint
                 currentModel?.text = profile.model?.id ?: "MODEL NOT SPECIFIED"
 
                 itemView.setOnClickListener {
                     onProfileClick(dataIndex)
-                    when (viewType) {
-                        TYPE_SELECTED -> itemView.setBackgroundResource(R.drawable.ic_bg_b)
-                        TYPE_NORMAL -> itemView.setBackgroundResource(R.drawable.ic_bg_g)
-                    }
                 }
                 itemView.setOnLongClickListener {
                     onLongClick(dataIndex)

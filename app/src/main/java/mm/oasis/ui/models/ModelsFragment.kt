@@ -1,6 +1,7 @@
 package mm.oasis.ui.models
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -24,6 +25,12 @@ import kotlinx.coroutines.launch
 import mm.oasis.repository.RepositoryState
 import mm.oasis.serialization.dto.LLMResponse
 import mm.oasis.serialization.storage.ProfileData
+import mm.oasis.ui.agent.AgentFilesActivity
+import mm.oasis.ui.objects.DialogField
+import mm.oasis.ui.objects.FieldType
+import mm.oasis.ui.objects.ModalDialogBuilder
+import java.text.DateFormat
+import java.util.Date
 
 
 class ModelsFragment : Fragment() {
@@ -34,11 +41,10 @@ class ModelsFragment : Fragment() {
 
     private lateinit var currentModelId: TextView
 
-    private val modelsAdapter = ModelsAdapter { model ->
-        requireActivity().runOnUiThread {
-            setCurrent(model)
-        }
-    }
+    private val modelsAdapter = ModelsAdapter(
+        onModelClick = { model -> setCurrent(model) },
+        onModelOpen = { model -> showModelInfo(model) },
+    )
 
     private var lastProfilesState: RepositoryState<ProfileData>? = null
 
@@ -56,6 +62,10 @@ class ModelsFragment : Fragment() {
         reload = view.findViewById(R.id.reload)
 
         currentModelId = view.findViewById(R.id.currentModelId)
+
+        view.findViewById<View>(R.id.agentFilesButton).setOnClickListener {
+            startActivity(Intent(requireContext(), AgentFilesActivity::class.java))
+        }
 
         modelsList = view.findViewById(R.id.modelsView)
         modelsList.layoutManager = LinearLayoutManager(requireContext())
@@ -138,5 +148,64 @@ class ModelsFragment : Fragment() {
         } else {
             currentModelId.text = "NOT SELECTED"
         }
+    }
+
+    private fun showModelInfo(model: LLMRaw) {
+        val dialog = ModalDialogBuilder(requireContext())
+            .setTitle(model.id)
+            .setOkText("SELECT")
+            .setCancelText("CLOSE")
+            .onOk { setCurrent(model) }
+
+        model.avatarUrl?.let {
+            dialog.addField(DialogField("avatarUrl", "AVATAR", FieldType.INFO, defaultValue = it))
+        }
+
+        if (model.extra.isEmpty()) {
+            dialog.addField(DialogField("", "NO DATA", FieldType.INFO))
+        } else {
+            addInfoFields(dialog, model.extra, 0)
+        }
+
+        dialog.show()
+    }
+
+    private fun addInfoFields(dialog: ModalDialogBuilder, map: Map<*, *>, depth: Int) {
+        map.forEach { (key, value) ->
+            val title = key.toString().replace('_', ' ').uppercase()
+
+            when {
+                value is Map<*, *> && value.isNotEmpty() -> {
+                    dialog.addField(DialogField("", title, FieldType.INFO, depth = depth))
+                    addInfoFields(dialog, value, depth + 1)
+                }
+                value is List<*> && value.any { it is Map<*, *> || it is List<*> } -> {
+                    dialog.addField(DialogField("", title, FieldType.INFO, depth = depth))
+                    addInfoFields(dialog, value.withIndex().associate { "[${it.index}]" to it.value }, depth + 1)
+                }
+                else -> {
+                    dialog.addField(DialogField("", title, FieldType.INFO, defaultValue = formatValue(key.toString(), value), depth = depth))
+                }
+            }
+        }
+    }
+
+    private fun formatValue(key: String, value: Any?): String = when (value) {
+        null -> "—"
+        is Map<*, *> -> "—"
+        is List<*> -> if (value.isEmpty()) "—" else value.joinToString(", ") { formatValue("", it) }
+        is Double -> {
+            val asLong = value.toLong()
+            // unix-время в секундах (created, created_at и т.п.)
+            if (key.startsWith("created") && asLong in 1_000_000_000L..9_999_999_999L) {
+                DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
+                    .format(Date(asLong * 1000))
+            } else if (value == asLong.toDouble()) {
+                asLong.toString()
+            } else {
+                value.toString()
+            }
+        }
+        else -> value.toString()
     }
 }

@@ -21,6 +21,8 @@ sealed class ContentPart {
         is TextPart -> copy(fileName = null)
         is ImagePart -> copy(fileName = null)
         is AudioPart -> copy(fileName = null)
+        is VideoPart -> copy(fileName = null)
+        is FilePart -> copy(fileName = null)
     }
 
     @Serializable
@@ -43,6 +45,21 @@ sealed class ContentPart {
         @SerialName("input_audio") val inputAudio: InputAudio,
         @SerialName("file_name") override val fileName: String? = null
     ) : ContentPart()
+
+    @Serializable
+    @SerialName("video_url")
+    data class VideoPart(
+        @SerialName("video_url") val videoUrl: VideoUrl,
+        @SerialName("file_name") override val fileName: String? = null
+    ) : ContentPart()
+
+    // документы, которые модель читает сама (PDF)
+    @Serializable
+    @SerialName("file")
+    data class FilePart(
+        val file: FileData,
+        @SerialName("file_name") override val fileName: String? = null
+    ) : ContentPart()
 }
 
 @Serializable
@@ -57,4 +74,17 @@ data class ImageUrl(
 data class InputAudio(
     val data: String,
     val format: String
+)
+
+@Serializable
+data class VideoUrl(
+    // "data:video/mp4;base64,{BASE64}"
+    val url: String
+)
+
+@Serializable
+data class FileData(
+    val filename: String,
+    // "data:application/pdf;base64,{BASE64}"
+    @SerialName("file_data") val fileData: String
 )

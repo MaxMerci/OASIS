@@ -6,9 +6,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.withContext
+import mm.oasis.remote.tools.ReadSkill
 import mm.oasis.serialization.dto.*
-
-private const val MAX_ITER = 4
 
 private class Acc {
     var content = ""
@@ -47,18 +47,27 @@ private class Acc {
     }
 }
 
-/**
- * Цикл агента: запрос -> (вызовы инструментов -> результаты -> запрос)* -> ответ.
- * Остановка генерации = отмена корутины, которая собирает этот Flow.
- */
 object Agent {
     fun use(request: Request): Flow<Message.Flow> = channelFlow {
-        val req = request.copy(tools = request.tools?.ifEmpty { null })
-        val messages = req.messages.toMutableList()
+        // файлы агентной системы подмешиваются только в запрос, в чате их нет
+        val (system, skills) = withContext(Dispatchers.IO) {
+            val skills = AgentFiles.skills()
+            AgentFiles.systemPrompt(skills) to skills
+        }
+        val available = request.tools.orEmpty() +
+                (if (skills.isNotEmpty()) listOf(ReadSkill.getTool()) else emptyList())
 
-        for (iteration in 0 until MAX_ITER) {
+        val req = request.copy(tools = available.ifEmpty { null })
+        val messages = req.messages.toMutableList()
+        system?.let { messages.add(0, Message(Message.MessageRole.SYSTEM, MessageContent.Text(it))) }
+
+        val maxIterations = request.maxIterations.coerceAtLeast(1)
+        for (iteration in 0 until maxIterations) {
             // на последней итерации инструменты не даем, модель обязана ответить текстом
-            if (iteration == MAX_ITER - 1) req.tools = null
+            if (iteration == maxIterations - 1) {
+                req.tools = null
+                if (iteration > 0) notifyLimit(messages, maxIterations)
+            }
             req.messages = messages
 
             val acc = Acc()
@@ -73,7 +82,7 @@ object Agent {
 
                 if (c.isNotEmpty() || r.isNotEmpty()) send(Message.Flow(c, r))
             }
-            if (acc.toolCalls.isEmpty()) break  // дальше ТОЛЬКО обработка инструментов
+            if (acc.toolCalls.isEmpty()) break
 
             messages.add(acc.toMessage())
             send(Message.Flow(
@@ -81,16 +90,17 @@ object Agent {
                 toolCalls = acc.toolCalls.map { it.toToolCall() }
             ))
 
-            // использованный инструмент убираем, иначе модели любят зацикливаться
-            val used = acc.toolCalls.map { it.functionName }.toSet()
+            // использованный инструмент убираем, иначе модели любят зацикливаться; безопасные остаются
+            val used = acc.toolCalls.map { it.functionName }
+                .filter { name -> available.none { it.function.name == name && it.repeatable } }
+                .toSet()
             req.tools = req.tools?.filter { it.function.name !in used }?.ifEmpty { null }
 
-            // на КАЖДЫЙ tool_call обязан быть ответ, иначе API вернет 400
             val results = acc.toolCalls.map { call ->
                 async(Dispatchers.IO) {
                     Message(
                         Message.MessageRole.TOOL,
-                        MessageContent.Text(execute(call.functionName, call.arguments)),
+                        MessageContent.Text(execute(available, call.functionName, call.arguments)),
                         toolCallId = call.id
                     )
                 }
@@ -99,8 +109,19 @@ object Agent {
         }
     }
 
-    private suspend fun execute(name: String, arguments: String): String {
-        val tool = ToolRegistry.getTool(name) ?: return "Error: unknown tool '$name'"
+    // лимит сообщаем в результате последнего инструмента: system посреди диалога многие API не принимают
+    private fun notifyLimit(messages: MutableList<Message>, maxIterations: Int) {
+        val index = messages.indexOfLast { it.role == Message.MessageRole.TOOL }
+        if (index == -1) return
+        val tool = messages[index]
+        messages[index] = tool.copy(content = MessageContent.Text(
+            tool.display + "\n\n[TOOL CALL LIMIT REACHED: $maxIterations iterations. " +
+                    "Tools are no longer available. Answer now using the information you already have.]"
+        ))
+    }
+
+    private suspend fun execute(tools: List<Tool>, name: String, arguments: String): String {
+        val tool = tools.find { it.function.name == name } ?: return "Error: unknown tool '$name'"
         return try {
             tool.execute(arguments)
         } catch (e: CancellationException) {

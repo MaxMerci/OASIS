@@ -30,6 +30,8 @@ class ToolsListAdapter : RecyclerView.Adapter<ToolsListAdapter.ToolViewHolder>()
     override fun onBindViewHolder(holder: ToolViewHolder, position: Int) {
         val tool = ToolRegistry.tools[position]
 
+        enabledTools.add(tool) // все инструменты включены по умолчанию
+
         holder.name.text = tool.function.name
             .replace("_", " ")
 

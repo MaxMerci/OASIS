@@ -162,6 +162,26 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:paddingLeft="10dp"
+            android:text="MAX TOOL ITERATIONS"
+            android:textColor="@color/text"
+            android:textSize="13sp" />
+        <EditText
+            android:textCursorDrawable="@drawable/white_cursor"
+            android:id="@+id/maxIterations"
+            android:padding="10dp"
+            android:textSize="13sp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColorHint="@color/hint"
+            android:textColor="@color/text"
+            android:hint="10"
+            android:inputType="number"
+            android:background="@null" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingLeft="10dp"
             android:text="TOOLS"
             android:textColor="@color/text"
             android:textSize="13sp" />

@@ -40,6 +40,17 @@
             android:textSize="12sp"/>
     </LinearLayout>
 
+    <TextView
+        android:id="@+id/tools"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingTop="3dp"
+        android:visibility="gone"
+        android:textColor="@color/hint"
+        android:textSize="12sp"/>
+
     <FrameLayout
         android:id="@+id/reasoning"
         android:layout_width="match_parent"

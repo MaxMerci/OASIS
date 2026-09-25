@@ -26,7 +26,7 @@
         android:paddingBottom="12dp"
         android:paddingLeft="12dp"
         android:paddingRight="12dp"
-        android:textColor="#AAAAAA"
+        android:textColor="@color/system_text"
         android:textSize="14sp"
         android:textAlignment="center"
         android:textIsSelectable="true" />

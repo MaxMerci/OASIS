@@ -2,7 +2,7 @@ package mm.oasis
 
 import android.content.Context
 import mm.oasis.remote.registerTools
-import mm.oasis.remote.tools.WebSearch
+import mm.oasis.remote.tools.*
 import java.io.File
 
 object Oasis {
@@ -14,7 +14,8 @@ object Oasis {
         applicationContext = context.applicationContext
         filesDir = applicationContext.filesDir
         registerTools(listOf(
-            WebSearch
+            WebSearch,
+            ReadSkill
         ))
     }
 }

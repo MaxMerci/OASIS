@@ -13,7 +13,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
-import io.ktor.utils.io.readUTF8Line
+import io.ktor.utils.io.readLine
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import okhttp3.Protocol
@@ -41,16 +41,11 @@ object ApiClient {
         }
 
         defaultRequest {
-            // лямбда выполняется на каждый запрос, так что ключ всегда от текущего профиля
             header(HttpHeaders.Authorization, "Bearer ${ProfileRepository.currentProfile?.apiKey}")
             header("Cache-Control", "no-cache")
         }
     }
 
-    /**
-     * Потоковая генерация (SSE). Ошибки API не глотаются, а летят исключением [ApiException],
-     * отмена корутины (кнопка стоп) прерывает чтение потока.
-     */
     fun generateTextStream(request: Request): Flow<ChatCompletionChunk> = channelFlow {
         val profile = ProfileRepository.currentProfile ?: throw ApiException("PROFILE NOT SELECTED")
         val body = request.copy(
@@ -69,8 +64,8 @@ object ApiClient {
 
             val channel = response.bodyAsChannel()
             while (true) {
-                val line = channel.readUTF8Line() ?: break
-                if (!line.startsWith("data:")) continue  // пустые строки, ": keep-alive" и т.п.
+                val line = channel.readLine() ?: break
+                if (!line.startsWith("data:")) continue
 
                 val data = line.removePrefix("data:").trim()
                 if (data == "[DONE]") break

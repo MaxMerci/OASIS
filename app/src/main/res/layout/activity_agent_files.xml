@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:ignore="HardcodedText">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_margin="15dp"
+        android:background="@drawable/ic_bg_b_r"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tabAgent"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="AGENT"
+            android:textColor="@color/text"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/tabSkills"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="SKILLS"
+            android:textColor="@color/text"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <!-- AGENT.md -->
+    <LinearLayout
+        android:id="@+id/agentPanel"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="15dp"
+            android:background="@drawable/ic_bg_b"
+            android:padding="4dp">
+
+            <EditText
+                android:id="@+id/agentInput"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="10dp"
+                android:gravity="top|start"
+                android:background="@null"
+                android:hint="AGENT.md..."
+                android:inputType="textMultiLine|textCapSentences"
+                android:scrollbars="vertical"
+                android:scrollbarSize="2dp"
+                android:textColor="@color/text"
+                android:textColorHint="@color/hint"
+                android:textCursorDrawable="@drawable/white_cursor"
+                android:textSize="13sp" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="9dp"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:padding="6dp"
+                android:text="AGENT.md"
+                android:textColor="@color/hint"
+                android:textSize="13sp" />
+
+            <android.widget.Button
+                android:id="@+id/agentReset"
+                style="@style/Widget.AppCompat.Button"
+                android:stateListAnimator="@null"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="6dp"
+                android:background="@drawable/ic_bg_b"
+                android:minWidth="40dp"
+                android:minHeight="0dp"
+                android:padding="12dp"
+                android:text="RESET"
+                android:textAllCaps="false"
+                android:textColor="@color/hint"
+                android:textSize="13sp" />
+
+            <android.widget.Button
+                android:id="@+id/agentSave"
+                style="@style/Widget.AppCompat.Button"
+                android:stateListAnimator="@null"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="6dp"
+                android:background="@drawable/ic_bg_l"
+                android:minWidth="40dp"
+                android:minHeight="0dp"
+                android:padding="12dp"
+                android:text="SAVE"
+                android:textAllCaps="false"
+                android:textColor="@color/stroke"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- SKILLS: список -->
+    <LinearLayout
+        android:id="@+id/skillsPanel"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="15dp"
+            android:background="@drawable/ic_bg_b">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/skillsList"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="2dp"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager" />
+
+            <TextView
+                android:id="@+id/skillsEmpty"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:padding="20dp"
+                android:text="[TIP]: No skills yet.\nCreate one or import a .md file. The model reads a skill with read_skill when it fits the task."
+                android:textAlignment="center"
+                android:textColor="@color/hint" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="9dp"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <android.widget.Button
+                android:id="@+id/skillImport"
+                style="@style/Widget.AppCompat.Button"
+                android:stateListAnimator="@null"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="6dp"
+                android:background="@drawable/ic_bg_b"
+                android:minWidth="40dp"
+                android:minHeight="0dp"
+                android:padding="12dp"
+                android:text="IMPORT"
+                android:textAllCaps="false"
+                android:textColor="@color/hint"
+                android:textSize="13sp" />
+
+            <android.widget.Button
+                android:id="@+id/skillNew"
+                style="@style/Widget.AppCompat.Button"
+                android:stateListAnimator="@null"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="6dp"
+                android:background="@drawable/ic_bg_l"
+                android:minWidth="40dp"
+                android:minHeight="0dp"
+                android:padding="12dp"
+                android:text="+ NEW"
+                android:textAllCaps="false"
+                android:textColor="@color/stroke"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- SKILLS: редактор -->
+    <LinearLayout
+        android:id="@+id/skillEditor"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="15dp"
+            android:layout_marginBottom="15dp"
+            android:background="@drawable/ic_bg_b"
+            android:padding="4dp">
+
+            <EditText
+                android:id="@+id/skillName"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="10dp"
+                android:background="@null"
+                android:hint="skill_name"
+                android:inputType="text"
+                android:maxLines="1"
+                android:textColor="@color/text"
+                android:textColorHint="@color/hint"
+                android:textCursorDrawable="@drawable/white_cursor"
+                android:textSize="14sp" />
+        </FrameLayout>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:layout_marginStart="15dp"
+            android:layout_marginEnd="15dp"
+            android:background="@drawable/ic_bg_b"
+            android:padding="4dp">
+
+            <EditText
+                android:id="@+id/skillContent"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="10dp"
+                android:gravity="top|start"
+                android:background="@null"
+                android:hint="---\nname: skill_name\ndescription: when the model should use this skill\n---\n\ninstructions..."
+                android:inputType="textMultiLine|textCapSentences"
+                android:scrollbars="vertical"
+                android:scrollbarSize="2dp"
+                android:textColor="@color/text"
+                android:textColorHint="@color/hint"
+                android:textCursorDrawable="@drawable/white_cursor"
+                android:textSize="13sp" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="9dp"
+            android:orientation="horizontal">
+
+            <android.widget.Button
+                android:id="@+id/skillDelete"
+                style="@style/Widget.AppCompat.Button"
+                android:stateListAnimator="@null"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="6dp"
+                android:background="@drawable/ic_bg_b"
+                android:minWidth="40dp"
+                android:minHeight="0dp"
+                android:padding="12dp"
+                android:text="DELETE"
+                android:textAllCaps="false"
+                android:textColor="@color/hint"
+                android:textSize="13sp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_weight="1" />
+
+            <android.widget.Button
+                android:id="@+id/skillCancel"
+                style="@style/Widget.AppCompat.Button"
+                android:stateListAnimator="@null"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="6dp"
+                android:background="@drawable/ic_bg_b"
+                android:minWidth="40dp"
+                android:minHeight="0dp"
+                android:padding="12dp"
+                android:text="CANCEL"
+                android:textAllCaps="false"
+                android:textColor="@color/hint"
+                android:textSize="13sp" />
+
+            <android.widget.Button
+                android:id="@+id/skillSave"
+                style="@style/Widget.AppCompat.Button"
+                android:stateListAnimator="@null"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_margin="6dp"
+                android:background="@drawable/ic_bg_l"
+                android:minWidth="40dp"
+                android:minHeight="0dp"
+                android:padding="12dp"
+                android:text="SAVE"
+                android:textAllCaps="false"
+                android:textColor="@color/stroke"
+                android:textSize="13sp" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

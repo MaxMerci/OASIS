@@ -19,7 +19,10 @@ class UserViewHolder(view: View) : RecyclerView.ViewHolder(view) {
     @SuppressLint("SetTextI18n")
     fun bind(message: Message, markwon: Markwon?) {
         nameView.text = "[${message.name}] >"
-        markwon?.setMarkdown(contentView, message.display)
+        markwon?.setMarkdown(contentView, message.display) ?: run {
+            contentView.text = message.display
+        }
+        contentView.visibility = if (message.display.isBlank()) View.GONE else View.VISIBLE
 
         attContainer.removeAllViews()
         val inflater = LayoutInflater.from(itemView.context)

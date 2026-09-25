@@ -2,22 +2,28 @@ package mm.oasis.ui.chat
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.webkit.MimeTypeMap
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.snackbar.Snackbar
 import mm.oasis.R
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.*
 import mm.oasis.ui.chat.message.AttachmentsAdapter
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -53,6 +59,7 @@ class RequestView @JvmOverloads constructor(
     /* PARAMETERS */
     private val temperatureField: EditText
     private val maxTokensField: EditText
+    private val maxIterationsField: EditText
 
     /* ANIM & TOUCH */
     private var fullSettingsHeight = 0
@@ -80,10 +87,14 @@ class RequestView @JvmOverloads constructor(
         // PARAMETERS
         temperatureField = findViewById(R.id.temperature)
         maxTokensField = findViewById(R.id.maxTokens)
+        maxIterationsField = findViewById(R.id.maxIterations)
 
         // ATTACHMENTS
         attachmentsList = findViewById(R.id.attachmentsList)
-        attachmentsAdapter = AttachmentsAdapter { updateAttachmentsVisibility() }
+        attachmentsAdapter = AttachmentsAdapter(
+            onOpen = ::openAttachment,
+            onRemove = { updateAttachmentsVisibility() }
+        )
         attachmentsList.adapter = attachmentsAdapter
 
         // TOOLS
@@ -116,9 +127,39 @@ class RequestView @JvmOverloads constructor(
         send.setOnClickListener { onClickSend() }
     }
 
-    fun addAttachment(part: ContentPart) {
-        attachmentsAdapter.addItem(part)
+    fun addAttachment(part: ContentPart, uri: Uri? = null) {
+        attachmentsAdapter.addItem(AttachmentsAdapter.Attachment(part, uri))
         updateAttachmentsVisibility()
+    }
+
+    // открываем исходный файл системой
+    private fun openAttachment(attachment: AttachmentsAdapter.Attachment) {
+        val uri = attachment.uri ?: return
+        val intent = Intent(Intent.ACTION_VIEW)
+            .setDataAndType(uri, mimeOf(uri, attachment.part.fileName))
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        try {
+            context.startActivity(Intent.createChooser(intent, attachment.part.fileName ?: "OPEN"))
+        } catch (e: ActivityNotFoundException) {
+            Snackbar.make(this, "NO APP TO OPEN ${attachment.part.fileName ?: "FILE"}", Snackbar.LENGTH_SHORT).show()
+        } catch (e: SecurityException) {
+            Snackbar.make(this, "NO ACCESS TO ${attachment.part.fileName ?: "FILE"}", Snackbar.LENGTH_SHORT).show()
+        }
+    }
+
+    // octet-stream никто открывать не возьмется, поэтому уточняем по расширению
+    private fun mimeOf(uri: Uri, fileName: String?): String {
+        val fromResolver = context.contentResolver.getType(uri)
+        if (fromResolver != null && fromResolver != "application/octet-stream") return fromResolver
+        val ext = fileName?.substringAfterLast('.', "")?.lowercase(Locale.ROOT).orEmpty()
+        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+    }
+
+    fun appendText(text: String) {
+        val current = content.text
+        if (current.isNotEmpty() && !current.endsWith("\n")) current.append("\n")
+        current.append(text)
+        content.setSelection(content.text.length)
     }
 
     fun setGenerating(generating: Boolean) {
@@ -155,18 +196,9 @@ class RequestView @JvmOverloads constructor(
 
         val profile = ProfileRepository.currentProfile
         val messages = mutableListOf<Message>()
-
-        // текстовые файлы уходят отдельными system сообщениями
-        attachments.filterIsInstance<ContentPart.TextPart>().forEach { part ->
-            messages += Message(
-                role = Message.MessageRole.SYSTEM,
-                content = MessageContent.Parts(listOf(part))
-            )
-        }
-
-        val userParts = mutableListOf<ContentPart>()
+        // файлы идут в том же user сообщении перед текстом: system посреди диалога многие API не принимают
+        val userParts = attachments.toMutableList()
         if (contentText.isNotBlank()) userParts += ContentPart.TextPart(contentText)
-        userParts += attachments.filter { it !is ContentPart.TextPart }
 
         messages += Message(
             avatarUrl = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${profile?.endPoint}",
@@ -185,7 +217,9 @@ class RequestView @JvmOverloads constructor(
                 ReasoningMode.ENABLED -> true
                 ReasoningMode.DISABLED -> false
             },
-            tools = toolsAdapter.enabledTools.toList().ifEmpty { null }
+            tools = toolsAdapter.enabledTools.toList().ifEmpty { null },
+            maxIterations = maxIterationsField.text.toString().trim().toIntOrNull()?.takeIf { it > 0 }
+                ?: Request.DEFAULT_MAX_ITERATIONS
         )
 
         onSend?.invoke(request)

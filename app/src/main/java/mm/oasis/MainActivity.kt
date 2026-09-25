@@ -2,6 +2,7 @@ package mm.oasis
 
 import androidx.recyclerview.widget.RecyclerView
 import java.lang.reflect.Field
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -13,6 +14,7 @@ import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import mm.oasis.ui.chat.ChatFragment
+import mm.oasis.ui.chat.SharedInbox
 import mm.oasis.ui.data.DataFragment
 import mm.oasis.ui.models.ModelsFragment
 import com.tbuonomo.viewpagerdotsindicator.WormDotsIndicator
@@ -29,7 +31,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
-        // до super.onCreate: при восстановлении процесса фрагменты создаются уже там и лезут в репозитории
         Oasis.init(this)
         super.onCreate(savedInstanceState)
 
@@ -40,12 +41,19 @@ class MainActivity : AppCompatActivity() {
         setupViewPager()
         setupBackPressedHandling()
         checkForUpdates()
+
+        if (savedInstanceState == null) handleShareIntent(intent)
     }
 
-    /**
-     * На Android 15+ (targetSdk 35+) приложение всегда рисуется edge-to-edge и adjustResize
-     * сам по себе больше не поднимает контент над клавиатурой, отступы надо ставить руками.
-     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleShareIntent(intent)
+    }
+
+    private fun handleShareIntent(intent: Intent?) {
+        if (SharedInbox.accept(intent)) viewPager.setCurrentItem(1, true)
+    }
+
     private fun applyWindowInsets() {
         val root = findViewById<View>(R.id.root)
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->

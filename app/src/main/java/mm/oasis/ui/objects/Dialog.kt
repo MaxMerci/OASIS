@@ -19,6 +19,7 @@ enum class FieldType {
     NUMBER,
     URL,
     HEADER,
+    INFO, // только чтение: title - ключ, defaultValue - значение (null = заголовок секции)
 }
 
 data class DialogField(
@@ -26,7 +27,8 @@ data class DialogField(
     val title: String,
     val type: FieldType,
     val required: Boolean = false,
-    val defaultValue: String? = null
+    val defaultValue: String? = null,
+    val depth: Int = 0
 )
 
 data class DialogButton(
@@ -44,6 +46,9 @@ class ModalDialogBuilder(private val context: Context) {
     private var onOk: ((Map<String, String?>) -> Unit)? = null
     private var onCancel: (() -> Unit)? = null
 
+    private var okText = "OK"
+    private var cancelText = "CANCEL"
+
     fun setTitle(title: String): ModalDialogBuilder {
         this.title = title
         return this
@@ -56,6 +61,16 @@ class ModalDialogBuilder(private val context: Context) {
 
     fun addButton(button: DialogButton): ModalDialogBuilder {
         buttons.add(button)
+        return this
+    }
+
+    fun setOkText(text: String): ModalDialogBuilder {
+        okText = text
+        return this
+    }
+
+    fun setCancelText(text: String): ModalDialogBuilder {
+        cancelText = text
         return this
     }
 
@@ -89,6 +104,11 @@ class ModalDialogBuilder(private val context: Context) {
         val fieldViews = mutableMapOf<String, EditText>()
 
         fields.forEach { field ->
+            if (field.type == FieldType.INFO) {
+                fieldsContainer.addView(inflateInfo(fieldsContainer, field))
+                return@forEach
+            }
+
             val fieldView = LayoutInflater.from(context)
                 .inflate(R.layout.dialog_field, fieldsContainer, false)
 
@@ -101,6 +121,7 @@ class ModalDialogBuilder(private val context: Context) {
                 FieldType.TEXT -> input.inputType = InputType.TYPE_CLASS_TEXT
                 FieldType.NUMBER -> input.inputType = InputType.TYPE_CLASS_NUMBER
                 FieldType.URL -> input.inputType = InputType.TYPE_TEXT_VARIATION_URI
+                FieldType.INFO -> {}
                 FieldType.HEADER -> {
                     input.inputType = InputType.TYPE_CLASS_TEXT
                     input.visibility = View.GONE
@@ -134,7 +155,7 @@ class ModalDialogBuilder(private val context: Context) {
 
         val cancelButton = LayoutInflater.from(context)
             .inflate(R.layout.dialog_button, defaultButtonsContainer, false) as Button
-        cancelButton.text = "CANCEL"
+        cancelButton.text = cancelText
         cancelButton.setOnClickListener {
             onCancel?.invoke()
             dialog.dismiss()
@@ -143,7 +164,7 @@ class ModalDialogBuilder(private val context: Context) {
 
         val okButton = LayoutInflater.from(context)
             .inflate(R.layout.dialog_button_l, defaultButtonsContainer, false) as Button
-        okButton.text = "OK"
+        okButton.text = okText
 
         fun validate(fieldViews: Map<String, EditText>): Boolean {
             for (field in fields) {
@@ -176,7 +197,7 @@ class ModalDialogBuilder(private val context: Context) {
         okButton.setOnClickListener {
             val result = mutableMapOf<String, String?>()
 
-            fields.forEach { field ->
+            fields.filter { it.type != FieldType.INFO }.forEach { field ->
                 result[field.key] = fieldViews[field.key]?.text?.toString()
             }
 
@@ -187,5 +208,27 @@ class ModalDialogBuilder(private val context: Context) {
         defaultButtonsContainer.addView(okButton)
 
         dialog.show()
+    }
+
+    private fun inflateInfo(parent: LinearLayout, field: DialogField): View {
+        val view = LayoutInflater.from(context)
+            .inflate(R.layout.dialog_info, parent, false)
+
+        val title = view.findViewById<TextView>(R.id.infoTitle)
+        val value = view.findViewById<TextView>(R.id.infoValue)
+
+        title.text = field.title
+
+        if (field.defaultValue == null) {
+            value.visibility = View.GONE
+            title.setTextColor(context.getColor(R.color.text))
+        } else {
+            value.text = field.defaultValue
+        }
+
+        val indent = (12 * field.depth * context.resources.displayMetrics.density).toInt()
+        view.setPadding(view.paddingLeft + indent, view.paddingTop, view.paddingRight, view.paddingBottom)
+
+        return view
     }
 }

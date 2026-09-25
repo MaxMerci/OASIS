@@ -16,7 +16,15 @@ data class ToolCall(
 data class Tool(
     val type: String = "function",
     val function: FunctionDefinition,
-    @Transient val execute: suspend (String) -> String = { "" }
+    @Transient val execute: suspend (String) -> String = { "" },
+    /**
+     * - Обычный инструмент модель может вызвать только один раз
+     * - Сложно сказать какой инструмент можно считать безопасный,
+     * просто этот можно вызывать бесконечное количество раз
+     * - Я не знаю нужно ли это, в мои годы нейронка просто дохла
+     * на вебпоиске из-за ущербного контекстного окна, сейчас хз
+    */
+    @Transient val repeatable: Boolean = false
 )
 
 @Serializable

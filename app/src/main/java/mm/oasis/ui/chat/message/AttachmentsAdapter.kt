@@ -1,33 +1,32 @@
 package mm.oasis.ui.chat.message
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import mm.oasis.R
 import mm.oasis.serialization.dto.ContentPart
 
 class AttachmentsAdapter(
-    private val onRemove: (ContentPart) -> Unit
+    private val onOpen: (Attachment) -> Unit,
+    private val onRemove: (Attachment) -> Unit
 ) : RecyclerView.Adapter<AttachmentsAdapter.ViewHolder>() {
 
-    private val items = mutableListOf<ContentPart>()
+    /** часть для запроса + исходный файл, чтобы его можно было открыть */
+    data class Attachment(val part: ContentPart, val uri: Uri?)
 
-    @SuppressLint("NotifyDataSetChanged")
-    fun setItems(newItems: List<ContentPart>) {
-        items.clear()
-        items.addAll(newItems)
-        notifyDataSetChanged()
-    }
+    private val items = mutableListOf<Attachment>()
 
-    fun addItem(item: ContentPart) {
+    fun addItem(item: Attachment) {
         items.add(item)
         notifyItemInserted(items.size - 1)
     }
 
-    fun getItems(): List<ContentPart> = items
+    fun getItems(): List<ContentPart> = items.map { it.part }
 
     @SuppressLint("NotifyDataSetChanged")
     fun clear() {
@@ -48,16 +47,18 @@ class AttachmentsAdapter(
 
     inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         private val name: TextView = view.findViewById(R.id.attachment_name)
+        private val remove: ImageView = view.findViewById(R.id.attachment_remove)
 
-        fun bind(item: ContentPart) {
-            name.text = item.fileName ?: "FILE"
-            itemView.setOnClickListener {
+        fun bind(item: Attachment) {
+            name.text = item.part.fileName ?: "FILE"
+            remove.visibility = View.VISIBLE
+            itemView.setOnClickListener { onOpen(item) }
+            remove.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
+                items.removeAt(pos)
+                notifyItemRemoved(pos)
                 onRemove(item)
-                val pos = adapterPosition
-                if (pos != RecyclerView.NO_POSITION) {
-                    items.removeAt(pos)
-                    notifyItemRemoved(pos)
-                }
             }
         }
     }

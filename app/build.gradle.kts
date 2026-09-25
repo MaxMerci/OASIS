@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "mm.oasis"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "mm.oasis"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 3
         versionName = "1.1.0"
 
