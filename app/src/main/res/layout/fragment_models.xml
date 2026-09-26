@@ -24,7 +24,7 @@
             android:layout_height="wrap_content"
             android:maxLines="1"
             android:textCursorDrawable="@drawable/white_cursor"
-            android:hint="🔍 SEARCH..."
+            android:hint="SEARCH..."
             android:textColorHint="@color/hint"
             android:textColor="@color/text"
             android:inputType="text"
