@@ -11,11 +11,13 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
+import android.view.inputmethod.InputMethodManager
 import android.webkit.MimeTypeMap
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.widget.addTextChangedListener
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
@@ -33,14 +35,16 @@ class RequestView @JvmOverloads constructor(
     attrs: AttributeSet? = null
 ) : LinearLayout(context, attrs) {
     /* MAIN */
-    var onSend: ((Request) -> Unit)? = null
+    var onSend: ((request: Request, edited: Message?) -> Unit)? = null
     var onStop: (() -> Unit)? = null
     var onAddAttachment: (() -> Unit)? = null
+    var onEditingChanged: ((Message?) -> Unit)? = null
 
     /* UI REFERENCES */
     private val content: EditText
     private val send: ImageButton
     private val addAttachment: ImageButton
+    private val editBar: View
 
     private val settingsContainer: View
     private val attachmentsList: RecyclerView
@@ -70,6 +74,11 @@ class RequestView @JvmOverloads constructor(
     /* STATE */
     private var isGenerating = false
 
+    /* EDITING */
+    var editing: Message? = null
+        private set
+    private var draft: CharSequence? = null
+
     init {
         orientation = VERTICAL
         LayoutInflater.from(context).inflate(R.layout.request_fields, this, true)
@@ -78,6 +87,7 @@ class RequestView @JvmOverloads constructor(
         content = findViewById(R.id.contentInput)
         send = findViewById(R.id.sendButton)
         addAttachment = findViewById(R.id.addAttachment)
+        editBar = findViewById(R.id.editBar)
 
         // REASONING
         reasoningYes = findViewById(R.id.reasoningYes)
@@ -125,6 +135,57 @@ class RequestView @JvmOverloads constructor(
         reasoningNo.setOnClickListener { updateReasoningState(ReasoningMode.DISABLED) }
 
         send.setOnClickListener { onClickSend() }
+
+        findViewById<View>(R.id.editCancel).setOnClickListener { cancelEditing() }
+        content.addTextChangedListener { updateSendState() }
+    }
+
+    /* EDITING */
+
+    fun startEditing(message: Message) {
+        if (editing == null) draft = content.text.toString()
+        editing = message
+        editBar.visibility = VISIBLE
+        content.setText(message.display)
+        content.setSelection(content.text.length)
+        content.requestFocus()
+        context.getSystemService(InputMethodManager::class.java)
+            ?.showSoftInput(content, InputMethodManager.SHOW_IMPLICIT)
+        updateSendState()
+        onEditingChanged?.invoke(message)
+    }
+
+    fun cancelEditing() {
+        if (editing == null) return
+        val previous = draft
+        finishEditing()
+        content.setText(previous ?: "")
+        content.setSelection(content.text.length)
+    }
+
+    fun finishEditing() {
+        if (editing == null) return
+        editing = null
+        draft = null
+        editBar.visibility = GONE
+        updateSendState()
+        onEditingChanged?.invoke(null)
+    }
+
+    private fun canSendEdit(): Boolean {
+        val message = editing ?: return true
+        val text = content.text.toString()
+        val added = attachmentsAdapter.itemCount > 0
+        return (text != message.display || added) && (text.isNotBlank() || added || hasFiles(message))
+    }
+
+    private fun hasFiles(message: Message): Boolean =
+        (message.content as? MessageContent.Parts)?.parts.orEmpty().any { !it.fileName.isNullOrEmpty() }
+
+    private fun updateSendState() {
+        val enabled = isGenerating || canSendEdit()
+        send.isEnabled = enabled
+        send.alpha = if (enabled) 1f else 0.4f
     }
 
     fun addAttachment(part: ContentPart, uri: Uri? = null) {
@@ -132,7 +193,6 @@ class RequestView @JvmOverloads constructor(
         updateAttachmentsVisibility()
     }
 
-    // открываем исходный файл системой
     private fun openAttachment(attachment: AttachmentsAdapter.Attachment) {
         val uri = attachment.uri ?: return
         val intent = Intent(Intent.ACTION_VIEW)
@@ -147,7 +207,6 @@ class RequestView @JvmOverloads constructor(
         }
     }
 
-    // octet-stream никто открывать не возьмется, поэтому уточняем по расширению
     private fun mimeOf(uri: Uri, fileName: String?): String {
         val fromResolver = context.contentResolver.getType(uri)
         if (fromResolver != null && fromResolver != "application/octet-stream") return fromResolver
@@ -165,6 +224,7 @@ class RequestView @JvmOverloads constructor(
     fun setGenerating(generating: Boolean) {
         isGenerating = generating
         send.setImageResource(if (generating) R.drawable.ic_stop else R.drawable.ic_send)
+        updateSendState()
     }
 
     fun clear() {
@@ -190,24 +250,32 @@ class RequestView @JvmOverloads constructor(
             return
         }
 
+        val edited = editing
+        if (!canSendEdit()) return
+
         val contentText = content.text.toString()
-        val attachments = attachmentsAdapter.getItems()
+        val keptFiles = (edited?.content as? MessageContent.Parts)?.parts.orEmpty()
+            .filter { !it.fileName.isNullOrEmpty() }
+        val attachments = keptFiles + attachmentsAdapter.getItems()
         if (contentText.isBlank() && attachments.isEmpty()) return
 
         val profile = ProfileRepository.currentProfile
-        val messages = mutableListOf<Message>()
-        // файлы идут в том же user сообщении перед текстом: system посреди диалога многие API не принимают
         val userParts = attachments.toMutableList()
         if (contentText.isNotBlank()) userParts += ContentPart.TextPart(contentText)
 
-        messages += Message(
+        val message = Message(
             avatarUrl = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${profile?.endPoint}",
             role = Message.MessageRole.USER,
             content = MessageContent.Parts(userParts),
             name = profile?.endpointDomain() ?: "YOU"
         )
 
-        val request = Request(
+        onSend?.invoke(buildRequest(listOf(message)), edited)
+    }
+
+    fun buildRequest(messages: List<Message>): Request {
+        val profile = ProfileRepository.currentProfile
+        return Request(
             messages = messages,
             model = profile?.model?.id,
             temperature = temperatureField.text.toString().trim().toDoubleOrNull(),
@@ -221,12 +289,11 @@ class RequestView @JvmOverloads constructor(
             maxIterations = maxIterationsField.text.toString().trim().toIntOrNull()?.takeIf { it > 0 }
                 ?: Request.DEFAULT_MAX_ITERATIONS
         )
-
-        onSend?.invoke(request)
     }
 
     private fun updateAttachmentsVisibility() {
         attachmentsList.visibility = if (attachmentsAdapter.itemCount > 0) VISIBLE else GONE
+        updateSendState()
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {

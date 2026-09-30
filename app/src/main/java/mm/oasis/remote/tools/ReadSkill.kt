@@ -24,6 +24,7 @@ object ReadSkill : ToolI {
 
     override fun getTool(): Tool = Tool(
         repeatable = true,
+        available = { AgentFiles.skills().isNotEmpty() },
         function = FunctionDefinition(
             name = NAME,
             description = "Read the full instructions of a skill listed in <available_skills>.",

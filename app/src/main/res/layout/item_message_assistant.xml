@@ -40,16 +40,23 @@
             android:textSize="12sp"/>
     </LinearLayout>
 
-    <TextView
+    <HorizontalScrollView
         android:id="@+id/tools"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingLeft="12dp"
         android:paddingRight="12dp"
         android:paddingTop="3dp"
-        android:visibility="gone"
-        android:textColor="@color/hint"
-        android:textSize="12sp"/>
+        android:clipToPadding="false"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/toolsContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal" />
+    </HorizontalScrollView>
 
     <FrameLayout
         android:id="@+id/reasoning"
@@ -76,18 +83,24 @@
             android:textColor="@color/hint"/>
     </FrameLayout>
 
-    <TextView
-        android:text="CONTENT"
+    <mm.oasis.ui.markdown.MarkdownView
         android:id="@+id/content"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:paddingLeft="12dp"
         android:paddingTop="3dp"
         android:paddingRight="12dp"
         android:paddingBottom="12dp"
         android:alpha="0"
-        android:visibility="gone"
-        android:textColor="@color/text"
-        android:textSize="16sp"
-        android:textIsSelectable="true"/>
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/files"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingLeft="12dp"
+        android:paddingRight="12dp"
+        android:paddingBottom="12dp"
+        android:orientation="vertical"
+        android:visibility="gone" />
 </LinearLayout>

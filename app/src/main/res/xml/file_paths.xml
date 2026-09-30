@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <external-cache-path name="external_cache" path="." />
+    <files-path name="workspace" path="workspace/" />
+    <!-- проводник WORKSPACE открывает любые файлы внутри хранилища приложения -->
+    <root-path name="app" path="." />
 </paths>

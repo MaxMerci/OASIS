@@ -19,7 +19,7 @@ enum class FieldType {
     NUMBER,
     URL,
     HEADER,
-    INFO, // только чтение: title - ключ, defaultValue - значение (null = заголовок секции)
+    INFO,
 }
 
 data class DialogField(
@@ -48,6 +48,7 @@ class ModalDialogBuilder(private val context: Context) {
 
     private var okText = "OK"
     private var cancelText = "CANCEL"
+    private var showCancel = true
 
     fun setTitle(title: String): ModalDialogBuilder {
         this.title = title
@@ -71,6 +72,11 @@ class ModalDialogBuilder(private val context: Context) {
 
     fun setCancelText(text: String): ModalDialogBuilder {
         cancelText = text
+        return this
+    }
+
+    fun hideCancel(): ModalDialogBuilder {
+        showCancel = false
         return this
     }
 
@@ -160,7 +166,7 @@ class ModalDialogBuilder(private val context: Context) {
             onCancel?.invoke()
             dialog.dismiss()
         }
-        defaultButtonsContainer.addView(cancelButton)
+        if (showCancel) defaultButtonsContainer.addView(cancelButton)
 
         val okButton = LayoutInflater.from(context)
             .inflate(R.layout.dialog_button_l, defaultButtonsContainer, false) as Button
@@ -218,6 +224,7 @@ class ModalDialogBuilder(private val context: Context) {
         val value = view.findViewById<TextView>(R.id.infoValue)
 
         title.text = field.title
+        if (field.title.isEmpty()) title.visibility = View.GONE
 
         if (field.defaultValue == null) {
             value.visibility = View.GONE

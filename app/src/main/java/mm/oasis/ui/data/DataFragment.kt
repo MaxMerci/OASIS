@@ -1,6 +1,7 @@
 package mm.oasis.ui.data
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -18,10 +19,12 @@ import mm.oasis.repository.ChatRepository
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.repository.Repository
 import mm.oasis.serialization.storage.ProfileData
+import mm.oasis.ui.agent.AgentFilesActivity
 import mm.oasis.ui.objects.DialogButton
 import mm.oasis.ui.objects.DialogField
 import mm.oasis.ui.objects.FieldType
 import mm.oasis.ui.objects.ModalDialogBuilder
+import mm.oasis.ui.workspace.WorkspaceActivity
 import kotlin.math.abs
 
 class DataFragment : Fragment() {
@@ -124,6 +127,13 @@ class DataFragment : Fragment() {
                 }
             }
             false
+        }
+
+        view.findViewById<View>(R.id.agentFilesButton).setOnClickListener {
+            startActivity(Intent(requireContext(), AgentFilesActivity::class.java))
+        }
+        view.findViewById<View>(R.id.workspaceButton).setOnClickListener {
+            startActivity(Intent(requireContext(), WorkspaceActivity::class.java))
         }
 
         return view

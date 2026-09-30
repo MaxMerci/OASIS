@@ -21,8 +21,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="end"
-        android:layout_marginBottom="4dp"
-        android:textIsSelectable="true" />
+        android:layout_marginBottom="4dp" />
 
     <TextView
         android:id="@+id/content"
@@ -36,6 +35,5 @@
         android:textColor="@color/text"
         android:textSize="16sp"
         android:text="CONTENT"
-        android:textIsSelectable="true"
         android:layout_marginStart="64dp" />
 </LinearLayout>

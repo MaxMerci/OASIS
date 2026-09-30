@@ -9,7 +9,8 @@ import kotlinx.serialization.json.JsonElement
 data class ToolCall(
     val id: String? = null,
     val type: String? = null,
-    val function: FunctionCall? = null
+    val function: FunctionCall? = null,
+    val result: String? = null
 )
 
 @Serializable
@@ -22,9 +23,11 @@ data class Tool(
      * - Сложно сказать какой инструмент можно считать безопасный,
      * просто этот можно вызывать бесконечное количество раз
      * - Я не знаю нужно ли это, в мои годы нейронка просто дохла
-     * на вебпоиске из-за ущербного контекстного окна, сейчас хз
+     * на веб поиске из-за ущербного контекстного окна, сейчас хз
     */
-    @Transient val repeatable: Boolean = false
+    @Transient val repeatable: Boolean = false,
+    // есть ли смысл давать инструмент модели прямо сейчас, вызывается в IO
+    @Transient val available: () -> Boolean = { true }
 )
 
 @Serializable

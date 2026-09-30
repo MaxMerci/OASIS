@@ -1,7 +1,6 @@
 package mm.oasis.ui.models
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -25,7 +24,6 @@ import kotlinx.coroutines.launch
 import mm.oasis.repository.RepositoryState
 import mm.oasis.serialization.dto.LLMResponse
 import mm.oasis.serialization.storage.ProfileData
-import mm.oasis.ui.agent.AgentFilesActivity
 import mm.oasis.ui.objects.DialogField
 import mm.oasis.ui.objects.FieldType
 import mm.oasis.ui.objects.ModalDialogBuilder
@@ -62,10 +60,6 @@ class ModelsFragment : Fragment() {
         reload = view.findViewById(R.id.reload)
 
         currentModelId = view.findViewById(R.id.currentModelId)
-
-        view.findViewById<View>(R.id.agentFilesButton).setOnClickListener {
-            startActivity(Intent(requireContext(), AgentFilesActivity::class.java))
-        }
 
         modelsList = view.findViewById(R.id.modelsView)
         modelsList.layoutManager = LinearLayoutManager(requireContext())

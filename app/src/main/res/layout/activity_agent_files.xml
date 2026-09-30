@@ -54,21 +54,27 @@
             android:background="@drawable/ic_bg_b"
             android:padding="4dp">
 
-            <EditText
-                android:id="@+id/agentInput"
+            <androidx.core.widget.NestedScrollView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:padding="10dp"
-                android:gravity="top|start"
-                android:background="@null"
-                android:hint="AGENT.md..."
-                android:inputType="textMultiLine|textCapSentences"
+                android:fillViewport="true"
                 android:scrollbars="vertical"
-                android:scrollbarSize="2dp"
-                android:textColor="@color/text"
-                android:textColorHint="@color/hint"
-                android:textCursorDrawable="@drawable/white_cursor"
-                android:textSize="13sp" />
+                android:scrollbarSize="2dp">
+
+                <EditText
+                    android:id="@+id/agentInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:gravity="top|start"
+                    android:background="@null"
+                    android:hint="AGENT.md..."
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:textColor="@color/text"
+                    android:textColorHint="@color/hint"
+                    android:textCursorDrawable="@drawable/white_cursor"
+                    android:textSize="13sp" />
+            </androidx.core.widget.NestedScrollView>
         </FrameLayout>
 
         <LinearLayout
@@ -196,7 +202,7 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- SKILLS: редактор -->
+    <!-- SKILLS -->
     <LinearLayout
         android:id="@+id/skillEditor"
         android:layout_width="match_parent"
@@ -238,21 +244,27 @@
             android:background="@drawable/ic_bg_b"
             android:padding="4dp">
 
-            <EditText
-                android:id="@+id/skillContent"
+            <androidx.core.widget.NestedScrollView
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:padding="10dp"
-                android:gravity="top|start"
-                android:background="@null"
-                android:hint="---\nname: skill_name\ndescription: when the model should use this skill\n---\n\ninstructions..."
-                android:inputType="textMultiLine|textCapSentences"
+                android:fillViewport="true"
                 android:scrollbars="vertical"
-                android:scrollbarSize="2dp"
-                android:textColor="@color/text"
-                android:textColorHint="@color/hint"
-                android:textCursorDrawable="@drawable/white_cursor"
-                android:textSize="13sp" />
+                android:scrollbarSize="2dp">
+
+                <EditText
+                    android:id="@+id/skillContent"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:gravity="top|start"
+                    android:background="@null"
+                    android:hint="---\nname: skill_name\ndescription: when the model should use this skill\n---\n\ninstructions..."
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:textColor="@color/text"
+                    android:textColorHint="@color/hint"
+                    android:textCursorDrawable="@drawable/white_cursor"
+                    android:textSize="13sp" />
+            </androidx.core.widget.NestedScrollView>
         </FrameLayout>
 
         <LinearLayout

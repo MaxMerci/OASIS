@@ -5,4 +5,10 @@
     <color name="hint">#888888</color>
     <color name="text">#FFFFFF</color>
     <color name="system_text">#AAAAAA</color>
+    <!-- подсветка кода -->
+    <color name="code_keyword">#C792EA</color>
+    <color name="code_string">#B5D98A</color>
+    <color name="code_comment">#6E6E6E</color>
+    <color name="code_number">#F2A06E</color>
+    <color name="code_function">#82AAFF</color>
 </resources>

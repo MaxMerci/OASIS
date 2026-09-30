@@ -20,8 +20,19 @@ import mm.oasis.ui.chat.message.AssistantViewHolder
 import mm.oasis.ui.chat.message.SystemViewHolder
 import mm.oasis.ui.chat.message.UserViewHolder
 
-class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+class MessagesAdapter(
+    private val onLongClick: (Message) -> Unit
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     private var markwon: Markwon? = null
+
+    var editing: Message? = null
+        set(value) {
+            if (field === value) return
+            val old = field
+            field = value
+            old?.let(::notifyMessageChanged)
+            value?.let(::notifyMessageChanged)
+        }
 
     companion object {
         private const val TYPE_USER = 0
@@ -31,12 +42,6 @@ class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     enum class Update { NONE, SWITCHED, INSERTED }
 
-    /*
-     * Адаптер держит свой снимок списка, а не читает ChatRepository напрямую:
-     * иначе список меняется раньше notify* и RecyclerView ловит рассинхрон.
-     * Сообщения сравниваются по ссылке - текущее сообщение меняется на месте
-     * и обновляется точечно через notifyMessageChanged.
-     */
     private var chat: ChatData? = null
     private var items: List<Message> = emptyList()
 
@@ -106,17 +111,16 @@ class MessagesAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
-            TYPE_USER -> UserViewHolder(inflater.inflate(R.layout.item_message_user, parent, false))
-            TYPE_ASSISTANT -> AssistantViewHolder(inflater.inflate(R.layout.item_message_assistant, parent, false))
-            else -> SystemViewHolder(inflater.inflate(R.layout.item_message_system, parent, false))
+            TYPE_USER -> UserViewHolder(inflater.inflate(R.layout.item_message_user, parent, false), onLongClick)
+            TYPE_ASSISTANT -> AssistantViewHolder(inflater.inflate(R.layout.item_message_assistant, parent, false), onLongClick)
+            else -> SystemViewHolder(inflater.inflate(R.layout.item_message_system, parent, false), onLongClick)
         }
     }
 
-    // появление новых сообщений анимирует ItemAnimator у RecyclerView, руками высоту itemView не трогаем
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val message = items[position]
         when (holder) {
-            is UserViewHolder -> holder.bind(message, markwon)
+            is UserViewHolder -> holder.bind(message, markwon, message === editing)
             is AssistantViewHolder -> holder.bind(message, markwon)
             is SystemViewHolder -> holder.bind(message, markwon)
         }
