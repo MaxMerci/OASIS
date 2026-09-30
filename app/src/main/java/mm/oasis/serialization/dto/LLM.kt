@@ -15,7 +15,7 @@ data class LLMResponse(
 @Serializable(with = LLMRawSerializer::class)
 data class LLMRaw(
     val id: String,
-    var avatarUrl: String? = null,
+    var avatar: String? = null,
     val extra: Map<String, Any?> = emptyMap(),
 )
 
@@ -40,7 +40,7 @@ object LLMRawSerializer : KSerializer<LLMRaw> {
         val output = encoder as? JsonEncoder ?: throw Exception("Only JSON is supported")
         val map = mutableMapOf<String, JsonElement>()
         map["id"] = JsonPrimitive(value.id)
-        value.avatarUrl?.let { map["avatarUrl"] = JsonPrimitive(it) }
+        value.avatar?.let { map["avatar"] = JsonPrimitive(it) }
         
         value.extra.forEach { (k, v) ->
             map[k] = v.toJsonElement()

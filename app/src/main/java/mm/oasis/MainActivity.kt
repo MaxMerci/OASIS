@@ -54,6 +54,10 @@ class MainActivity : AppCompatActivity() {
         if (SharedInbox.accept(intent)) viewPager.setCurrentItem(1, true)
     }
 
+    fun openModels() {
+        viewPager.setCurrentItem(2, true)
+    }
+
     private fun applyWindowInsets() {
         val root = findViewById<View>(R.id.root)
         ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->

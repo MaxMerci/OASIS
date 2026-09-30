@@ -21,7 +21,8 @@ import mm.oasis.ui.chat.message.SystemViewHolder
 import mm.oasis.ui.chat.message.UserViewHolder
 
 class MessagesAdapter(
-    private val onLongClick: (Message) -> Unit
+    private val onLongClick: (Message) -> Unit,
+    private val onNameClick: () -> Unit
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     private var markwon: Markwon? = null
 
@@ -112,7 +113,7 @@ class MessagesAdapter(
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             TYPE_USER -> UserViewHolder(inflater.inflate(R.layout.item_message_user, parent, false), onLongClick)
-            TYPE_ASSISTANT -> AssistantViewHolder(inflater.inflate(R.layout.item_message_assistant, parent, false), onLongClick)
+            TYPE_ASSISTANT -> AssistantViewHolder(inflater.inflate(R.layout.item_message_assistant, parent, false), onLongClick, onNameClick)
             else -> SystemViewHolder(inflater.inflate(R.layout.item_message_system, parent, false), onLongClick)
         }
     }

@@ -26,10 +26,6 @@ If you are not aware: almost all modern LLM APIs inherit the same structure crea
 - **chats management**: To add a chat, drag the list down to delete it, just swipe the chat behind the list.
 - **web search**: The tool is built into the agent and can be enabled in the request parameters window. It uses DuckDuckGo search results (titles, links and snippets), no API keys needed.
 
-[not supported (for now)]
-
-- **editing messages**: I haven't done it yet.
-
 ### ABOUT IT
 
 Once I looked at the LLMs that my friends use and I felt sad :(, then I decided that I would make them an application in which advanced LLMs would be available to them without VPN through mirrors, because deepseek is not the case, and development began.
@@ -56,10 +52,6 @@ I really love Rain World (© Videocult) and I decided that I want to make a masc
 - **просмотр моделей**: Вы можете выбирать и просматривать модели, предоставляемые выбранным API.
 - **управление чатами**: Чтобы добавить чат, перетащите список вниз, чтобы удалить его, просто свайпните его за список.
 - **веб поиск**: инструмент встроенный в агента, он включается в окошке с параметрами запроса. Использует выдачу DuckDuckGo (заголовки, ссылки и сниппеты), ключи не нужны.
-
-[не поддерживается (пока что)]
-
-- **редактирование сообщений**: Еще не сделал.
 
 ### О ПРОЕКТЕ
 

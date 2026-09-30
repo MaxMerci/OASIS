@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 private val json = kotlinx.serialization.json.Json {
     ignoreUnknownKeys = true
     encodeDefaults = true
-    explicitNulls = false
+    explicitNulls = true
 }
 
 object ApiClient {
@@ -87,7 +87,11 @@ object ApiClient {
             parameter("order", "most-popular")
         }
         val models = response.body<LLMResponse>()
-        models.data.forEach { it.avatarUrl = findAvatar(it.id) }
+        models.data.forEach {
+            if (it.avatar.isNullOrEmpty()) {
+                it.avatar = findAvatar(it.id)
+            }
+        }
         return models
     }
 

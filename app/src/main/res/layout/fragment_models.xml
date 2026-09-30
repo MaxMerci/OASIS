@@ -56,14 +56,36 @@
 
         <TextView
             android:id="@+id/currentModelId"
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:padding="4dp"
             android:text="MODEL ID"
             android:textColor="@color/text"
             android:textSize="14sp"
             app:layout_constraintTop_toBottomOf="@id/headerLabel"
-            app:layout_constraintStart_toStartOf="parent" />
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/currentModelOpenButton" />
+
+        <android.widget.Button
+            android:id="@+id/currentModelOpenButton"
+            style="@style/Widget.AppCompat.Button"
+            android:stateListAnimator="@null"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="4dp"
+            android:background="@drawable/ic_bg_b"
+            android:minWidth="40dp"
+            android:minHeight="0dp"
+            android:padding="10dp"
+            android:text="OPEN"
+            android:textAllCaps="false"
+            android:textColor="@color/hint"
+            android:textSize="13sp"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:ignore="HardcodedText" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

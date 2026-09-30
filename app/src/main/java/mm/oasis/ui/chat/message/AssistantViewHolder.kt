@@ -31,7 +31,8 @@ import mm.oasis.ui.objects.WorkspaceFiles
 
 class AssistantViewHolder(
     view: View,
-    private val onLongClick: (Message) -> Unit
+    private val onLongClick: (Message) -> Unit,
+    onNameClick: () -> Unit
 ) : RecyclerView.ViewHolder(view) {
     companion object {
         const val CHANGE_DURATION = 500L
@@ -66,6 +67,7 @@ class AssistantViewHolder(
         contentView.onLongClick = longClick
         reasoningCurrent.setOnLongClickListener(longClick)
         reasoningNext.setOnLongClickListener(longClick)
+        nameView.setOnClickListener { onNameClick() }
     }
 
     @SuppressLint("SetTextI18n")

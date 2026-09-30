@@ -8,6 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.View.*
 import android.view.ViewGroup
+import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.fragment.app.Fragment
@@ -38,6 +39,7 @@ class ModelsFragment : Fragment() {
     private lateinit var reload: SwipeRefreshLayout
 
     private lateinit var currentModelId: TextView
+    private lateinit var currentModelOpenButton: Button
 
     private val modelsAdapter = ModelsAdapter(
         onModelClick = { model -> setCurrent(model) },
@@ -60,6 +62,10 @@ class ModelsFragment : Fragment() {
         reload = view.findViewById(R.id.reload)
 
         currentModelId = view.findViewById(R.id.currentModelId)
+        currentModelOpenButton = view.findViewById(R.id.currentModelOpenButton)
+        currentModelOpenButton.setOnClickListener {
+            ProfileRepository.currentProfile?.model?.let { showModelInfo(it) }
+        }
 
         modelsList = view.findViewById(R.id.modelsView)
         modelsList.layoutManager = LinearLayoutManager(requireContext())
@@ -139,8 +145,10 @@ class ModelsFragment : Fragment() {
                 currentProfile.copy(model = model)
             }
             currentModelId.text = model.id
+            currentModelOpenButton.visibility = VISIBLE
         } else {
             currentModelId.text = "NOT SELECTED"
+            currentModelOpenButton.visibility = GONE
         }
     }
 
@@ -151,7 +159,7 @@ class ModelsFragment : Fragment() {
             .setCancelText("CLOSE")
             .onOk { setCurrent(model) }
 
-        model.avatarUrl?.let {
+        model.avatar?.let {
             dialog.addField(DialogField("avatarUrl", "AVATAR", FieldType.INFO, defaultValue = it))
         }
 

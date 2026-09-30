@@ -19,6 +19,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import mm.oasis.MainActivity
 import mm.oasis.R
 import mm.oasis.remote.Agent
 import mm.oasis.remote.Attachments
@@ -31,7 +32,10 @@ import mm.oasis.ui.objects.MessageMenu
 class ChatFragment : Fragment() {
 
     private lateinit var input: RequestView
-    private val messagesAdapter = MessagesAdapter(onLongClick = ::showMessageMenu)
+    private val messagesAdapter = MessagesAdapter(
+        onLongClick = ::showMessageMenu,
+        onNameClick = { (activity as? MainActivity)?.openModels() }
+    )
     private lateinit var messagesList: RecyclerView
     private lateinit var emptyView: TextView
 
@@ -213,7 +217,7 @@ class ChatFragment : Fragment() {
             .map { it.copy(toolCalls = null) } // вызовы инструментов в чате только для показа
 
         val assistant = Message(
-            avatarUrl = ProfileRepository.currentProfile?.model?.avatarUrl,
+            avatarUrl = ProfileRepository.currentProfile?.model?.avatar,
             role = Message.MessageRole.ASSISTANT,
             content = MessageContent.Parts(listOf(ContentPart.TextPart(""))),
             reasoning = "",
@@ -248,6 +252,7 @@ class ChatFragment : Fragment() {
             } catch (e: Exception) {
                 e.printStackTrace()
                 assistant.streamDisplay("\n\n**[ERROR]:** ${e.message ?: e.toString()}")
+                notifyMessageChanged(assistant)
                 view?.let { Snackbar.make(it, e.message ?: e.toString(), Snackbar.LENGTH_SHORT).show() }
             } finally {
                 if (assistant.display.isBlank() && assistant.reasoning.isNullOrBlank() && assistant.toolCalls.isNullOrEmpty()) {
