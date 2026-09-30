@@ -12,4 +12,5 @@
     android:textColor="@color/hint"
     android:background="@drawable/ic_bg_b"
     android:textAllCaps="false"
-    style="@style/Widget.AppCompat.Button" />
+    style="@style/Widget.AppCompat.Button"
+    android:stateListAnimator="@null" />

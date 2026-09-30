@@ -42,7 +42,6 @@ object AgentFiles {
     fun readSkill(name: String): String? =
         File(skillsDir, "${normalizeName(name)}.md").takeIf { it.isFile }?.readText()
 
-    /** Сохраняет скил, при переименовании старый файл удаляется. Возвращает итоговое имя. */
     fun writeSkill(name: String, content: String, oldName: String? = null): String {
         val normalized = normalizeName(name)
         require(normalized.isNotEmpty()) { "EMPTY SKILL NAME" }
@@ -57,7 +56,6 @@ object AgentFiles {
 
     fun skillExists(name: String) = File(skillsDir, "${normalizeName(name)}.md").isFile
 
-    // имя = имя файла
     fun normalizeName(name: String): String =
         name.trim().removeSuffix(".md").lowercase()
             .replace(Regex("\\s+"), "_")
@@ -66,7 +64,6 @@ object AgentFiles {
 
     fun frontmatterName(content: String): String? = frontmatter(content)["name"]
 
-    // description из frontmatter, иначе первая строка текста, которая не заголовок
     private fun describe(content: String): String {
         frontmatter(content)["description"]?.let { return it.take(DESCRIPTION_LIMIT) }
         return body(content).lineSequence()
@@ -100,7 +97,7 @@ object AgentFiles {
 
     /* PROMPT */
 
-    fun systemPrompt(skills: List<Skill>): String? {
+    fun systemPrompt(skills: List<Skill>, workspace: List<String> = emptyList()): String? {
         val agent = readAgent().trim()
         val lines = mutableListOf<String>()
 
@@ -133,6 +130,16 @@ object AgentFiles {
                 lines += "  </skill>"
             }
             lines += "</available_skills>"
+        }
+
+        if (workspace.isNotEmpty()) {
+            lines += listOf(
+                "## Workspace",
+                "Files the user can open. To give one to the user, call `link_file` with its path.",
+                "<workspace_files>"
+            )
+            workspace.forEach { lines += "  $it" }
+            lines += "</workspace_files>"
         }
 
         return lines.joinToString("\n").trim().ifEmpty { null }

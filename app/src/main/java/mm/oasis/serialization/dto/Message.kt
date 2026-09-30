@@ -12,12 +12,17 @@ data class Message(
     @SerialName("tool_calls") var toolCalls: List<ToolCall>? = null,
     @SerialName("tool_call_id") val toolCallId: String? = null,
     val name: String? = null,
-    @SerialName("avatar_url") val avatarUrl: String? = null
+    @SerialName("avatar_url") val avatarUrl: String? = null,
+    // пути файлов из воркспейса, прикрепленных моделью через link_file; сами файлы в чате не хранятся
+    var files: List<String>? = null
 ) {
     data class Flow(
         val content: String = "",
         val reasoning: String = "",
-        val toolCalls: List<ToolCall> = emptyList()
+        val toolCalls: List<ToolCall> = emptyList(),
+        // вызов (тот же экземпляр, что пришел в toolCalls) -> результат
+        val toolResults: List<Pair<ToolCall, String>> = emptyList(),
+        val files: List<String> = emptyList()
     )
 
     fun forApi(): Message = Message(
@@ -48,7 +53,7 @@ data class Message(
             is MessageContent.Text -> c.value
             is MessageContent.Parts -> c.parts
                 .filterIsInstance<ContentPart.TextPart>()
-                .filter { it.fileName == null } // содержимое файлов в чате не показываем, только плашку
+                .filter { it.fileName == null }
                 .joinToString("\n") { it.text }
             null -> ""
         }

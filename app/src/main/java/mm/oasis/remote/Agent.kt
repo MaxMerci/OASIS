@@ -7,7 +7,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.withContext
-import mm.oasis.remote.tools.ReadSkill
+import mm.oasis.remote.tools.LinkFile
 import mm.oasis.serialization.dto.*
 
 private class Acc {
@@ -24,10 +24,10 @@ private class Acc {
         acc.applyDelta(delta)
     }
 
-    fun toMessage(): Message = Message(
+    fun toMessage(calls: List<ToolCall>): Message = Message(
         Message.MessageRole.ASSISTANT,
         MessageContent.Text(content),
-        toolCalls = toolCalls.map { it.toToolCall() }.ifEmpty { null }
+        toolCalls = calls.ifEmpty { null }
     )
 
     class ToolCallAcc(val index: Int) {
@@ -50,12 +50,11 @@ private class Acc {
 object Agent {
     fun use(request: Request): Flow<Message.Flow> = channelFlow {
         // файлы агентной системы подмешиваются только в запрос, в чате их нет
-        val (system, skills) = withContext(Dispatchers.IO) {
-            val skills = AgentFiles.skills()
-            AgentFiles.systemPrompt(skills) to skills
+        // инструменты, которым сейчас нечего делать (нет скиллов, пустой workspace), модели не даем
+        val (system, available) = withContext(Dispatchers.IO) {
+            AgentFiles.systemPrompt(AgentFiles.skills(), Workspace.files()) to
+                    request.tools.orEmpty().filter { it.available() }.distinctBy { it.function.name }
         }
-        val available = request.tools.orEmpty() +
-                (if (skills.isNotEmpty()) listOf(ReadSkill.getTool()) else emptyList())
 
         val req = request.copy(tools = available.ifEmpty { null })
         val messages = req.messages.toMutableList()
@@ -84,32 +83,31 @@ object Agent {
             }
             if (acc.toolCalls.isEmpty()) break
 
-            messages.add(acc.toMessage())
-            send(Message.Flow(
-                reasoning = "\n\n" + acc.toolCalls.joinToString { "use ${it.functionName} ${it.arguments}" } + "\n\n",
-                toolCalls = acc.toolCalls.map { it.toToolCall() }
-            ))
+            val calls = acc.toolCalls.map { it.toToolCall() }
+            messages.add(acc.toMessage(calls))
+            send(Message.Flow(toolCalls = calls))
 
-            // использованный инструмент убираем, иначе модели любят зацикливаться; безопасные остаются
             val used = acc.toolCalls.map { it.functionName }
                 .filter { name -> available.none { it.function.name == name && it.repeatable } }
                 .toSet()
             req.tools = req.tools?.filter { it.function.name !in used }?.ifEmpty { null }
 
-            val results = acc.toolCalls.map { call ->
+            val results = calls.map { call ->
                 async(Dispatchers.IO) {
-                    Message(
-                        Message.MessageRole.TOOL,
-                        MessageContent.Text(execute(available, call.functionName, call.arguments)),
-                        toolCallId = call.id
-                    )
+                    call to execute(available, call.function?.name.orEmpty(), call.function?.arguments.orEmpty())
                 }
             }.awaitAll()
-            messages.addAll(results)
+            messages.addAll(results.map { (call, result) ->
+                Message(Message.MessageRole.TOOL, MessageContent.Text(result), toolCallId = call.id)
+            })
+
+            val files = calls
+                .filter { it.function?.name == LinkFile.NAME }
+                .mapNotNull { LinkFile.linkedPath(it.function?.arguments.orEmpty()) }
+            send(Message.Flow(toolResults = results, files = files))
         }
     }
 
-    // лимит сообщаем в результате последнего инструмента: system посреди диалога многие API не принимают
     private fun notifyLimit(messages: MutableList<Message>, maxIterations: Int) {
         val index = messages.indexOfLast { it.role == Message.MessageRole.TOOL }
         if (index == -1) return

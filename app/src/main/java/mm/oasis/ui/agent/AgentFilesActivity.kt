@@ -41,7 +41,7 @@ class AgentFilesActivity : AppCompatActivity() {
 
     private var tab = Tab.AGENT
     private var savedAgent = ""
-    private var editing: String? = null  // имя открытого скила, null = новый
+    private var editing: String? = null
     private var editorOpen = false
 
     private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->

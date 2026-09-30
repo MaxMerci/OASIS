@@ -2,12 +2,15 @@ package mm.oasis.ui.chat.message
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.graphics.Paint
+import android.view.LayoutInflater
 import android.view.View
 import android.view.View.*
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
@@ -16,19 +19,30 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import mm.oasis.R
+import mm.oasis.remote.Workspace
 import mm.oasis.serialization.dto.Message
 import mm.oasis.serialization.dto.ToolCall
+import mm.oasis.ui.markdown.MarkdownView
+import mm.oasis.ui.objects.DialogField
+import mm.oasis.ui.objects.FieldType
+import mm.oasis.ui.objects.ModalDialogBuilder
+import mm.oasis.ui.objects.WorkspaceFiles
 
 
-class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+class AssistantViewHolder(
+    view: View,
+    private val onLongClick: (Message) -> Unit
+) : RecyclerView.ViewHolder(view) {
     companion object {
         const val CHANGE_DURATION = 500L
     }
 
     private val avatarView: ImageView = view.findViewById(R.id.avatar)
     private val nameView: TextView = view.findViewById(R.id.name)
-    private val toolsView: TextView = view.findViewById(R.id.tools)
-    private val contentView: TextView = view.findViewById(R.id.content)
+    private val toolsView: View = view.findViewById(R.id.tools)
+    private val toolsContainer: LinearLayout = view.findViewById(R.id.toolsContainer)
+    private val contentView: MarkdownView = view.findViewById(R.id.content)
+    private val filesView: LinearLayout = view.findViewById(R.id.files)
     /* REASONING */
     private val reasoningCurrent: TextView = view.findViewById(R.id.reasoningCurrent)
     private val reasoningNext: TextView = view.findViewById(R.id.reasoningNext)
@@ -43,17 +57,21 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
     private var paragraphAnimating = false
     private var heightAnimator: ValueAnimator? = null
 
-    fun latexFix(text: String): String {
-        val regex = Regex("""(?<!\\)\$((?:[^$]|\\\$)+?)(?<!\\)\$""")
-        return regex.replace(text) {
-            val inner = it.groupValues[1]
-            if (inner.contains("\n")) "$$$inner$$" else "$${inner.trim()}$"
+    init {
+        val longClick = OnLongClickListener {
+            boundMessage?.let(onLongClick)
+            boundMessage != null
         }
+        itemView.setOnLongClickListener(longClick)
+        contentView.onLongClick = longClick
+        reasoningCurrent.setOnLongClickListener(longClick)
+        reasoningNext.setOnLongClickListener(longClick)
     }
 
     @SuppressLint("SetTextI18n")
     fun bind(message: Message, markwon: Markwon?) {
         this.markwon = markwon
+        contentView.markwon = markwon
         val animate = message === boundMessage
         if (!animate) reset()
         boundMessage = message
@@ -69,11 +87,10 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         }
         nameView.text = "[${message.name ?: "ASSISTANT"}] >"
 
-        val tools = message.toolCalls.orEmpty().joinToString("\n") { formatToolCall(it) }
-        toolsView.text = tools
-        toolsView.visibility = if (tools.isEmpty()) GONE else VISIBLE
+        bindTools(message.toolCalls.orEmpty())
+        bindFiles(message.files.orEmpty(), force = !animate)
 
-        val content = latexFix(message.display)
+        val content = message.display
         val reasoning = message.reasoning
 
         if (content.isBlank() && !reasoning.isNullOrBlank()) {
@@ -92,25 +109,80 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
 
         if (content.isNotBlank()) {
             if (!contentShown) showContent(animate)
-            markwon?.setMarkdown(contentView, content) ?: run {
-                contentView.text = content
-            }
+            contentView.setMarkdown(content)
         } else {
-            contentView.text = ""
+            contentView.clear()
         }
     }
 
-    private fun formatToolCall(call: ToolCall): String {
-        val name = call.function?.name ?: "tool"
-        val args = call.function?.arguments.orEmpty()
-        val readable = try {
-            (Json.parseToJsonElement(args) as JsonObject).values.joinToString(", ") {
-                if (it is JsonPrimitive) it.content else it.toString()
-            }
-        } catch (e: Exception) {
-            args
+    /* TOOLS */
+
+    private fun bindTools(calls: List<ToolCall>) {
+        toolsView.visibility = if (calls.isEmpty()) GONE else VISIBLE
+        while (toolsContainer.childCount > calls.size) toolsContainer.removeViewAt(toolsContainer.childCount - 1)
+        calls.forEachIndexed { index, call ->
+            val chip = toolsContainer.getChildAt(index) as? TextView
+                ?: (LayoutInflater.from(itemView.context)
+                    .inflate(R.layout.item_tool_call, toolsContainer, false) as TextView)
+                    .also { toolsContainer.addView(it) }
+            chip.text = "use ${call.function?.name ?: "tool"}"
+            chip.alpha = if (call.result == null) 0.5f else 1f
+            chip.setOnClickListener { showToolCall(call) }
         }
-        return "> $name: ${readable.take(120)}"
+    }
+
+    private fun showToolCall(call: ToolCall) {
+        val builder = ModalDialogBuilder(itemView.context)
+            .setTitle("use ${call.function?.name ?: "tool"}")
+            .setOkText("CLOSE")
+            .hideCancel()
+            .addField(DialogField("", "ARGUMENTS", FieldType.INFO))
+
+        val args = call.function?.arguments.orEmpty()
+        val parsed = try {
+            Json.parseToJsonElement(args.ifBlank { "{}" }) as? JsonObject
+        } catch (e: Exception) {
+            null
+        }
+        when {
+            parsed == null -> builder.addField(DialogField("", "", FieldType.INFO, defaultValue = args, depth = 1))
+            parsed.isEmpty() -> builder.addField(DialogField("", "", FieldType.INFO, defaultValue = "no arguments", depth = 1))
+            else -> parsed.forEach { (key, value) ->
+                val text = if (value is JsonPrimitive) value.content else value.toString()
+                builder.addField(DialogField("", key, FieldType.INFO, defaultValue = text, depth = 1))
+            }
+        }
+
+        builder.addField(DialogField("", "RESULT", FieldType.INFO))
+        builder.addField(DialogField(
+            "", "", FieldType.INFO,
+            defaultValue = call.result ?: "There is no result here yet",
+            depth = 1
+        ))
+        builder.show()
+    }
+
+    /* FILES */
+
+    private fun bindFiles(files: List<String>, force: Boolean) {
+        if (!force && filesView.tag == files) return
+        filesView.tag = files
+        filesView.visibility = if (files.isEmpty()) GONE else VISIBLE
+        filesView.removeAllViews()
+        val inflater = LayoutInflater.from(itemView.context)
+        val margin = (4 * itemView.resources.displayMetrics.density).toInt()
+        files.forEach { path ->
+            val chip = inflater.inflate(R.layout.item_attachment, filesView, false)
+            (chip.layoutParams as ViewGroup.MarginLayoutParams).topMargin = margin
+            val name = chip.findViewById<TextView>(R.id.attachment_name)
+            name.text = path.substringAfterLast('/')
+            if (Workspace.resolve(path) == null) {
+                chip.alpha = 0.5f
+                name.paintFlags = name.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+            }
+            chip.setOnClickListener { WorkspaceFiles.open(itemView, path) }
+            filesView.addView(chip)
+        }
     }
 
     private fun reset() {
@@ -226,7 +298,6 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val newText = targetParagraph ?: return
         if (currentParagraph == newText) return
 
-        // контейнер еще не разложен (только что показали) - меряться не с чем, ставим без анимации
         val width = reasoningContainer.width
         if (width <= 0 || currentParagraph == null) {
             setParagraph(newText)
@@ -283,7 +354,6 @@ class AssistantViewHolder(view: View) : RecyclerView.ViewHolder(view) {
                 reasoningContainer.layoutParams.height = ViewGroup.LayoutParams.WRAP_CONTENT
                 reasoningContainer.requestLayout()
 
-                // пока шла анимация, мог прийти следующий абзац
                 changeReasoningParagraph()
             }
             .start()

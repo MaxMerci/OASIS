@@ -15,7 +15,8 @@ object Oasis {
         filesDir = applicationContext.filesDir
         registerTools(listOf(
             WebSearch,
-            ReadSkill
+            ReadSkill,
+            LinkFile
         ))
     }
 }
