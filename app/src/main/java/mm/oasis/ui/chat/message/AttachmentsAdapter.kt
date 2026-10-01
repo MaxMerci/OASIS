@@ -28,6 +28,8 @@ class AttachmentsAdapter(
 
     fun getItems(): List<ContentPart> = items.map { it.part }
 
+    fun getUris(): List<Uri> = items.mapNotNull { it.uri }
+
     @SuppressLint("NotifyDataSetChanged")
     fun clear() {
         items.clear()

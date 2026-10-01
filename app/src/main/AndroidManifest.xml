@@ -34,16 +34,8 @@
         </activity>
 
         <activity
-            android:name=".ui.agent.AgentFilesActivity"
-            android:theme="@style/Theme.OASIS.Side"
-            android:windowSoftInputMode="adjustResize"
-            tools:ignore="LockedOrientationActivity"
-            android:screenOrientation="portrait"
-            android:exported="false" />
-
-        <activity
             android:name=".ui.workspace.WorkspaceActivity"
-            android:theme="@style/Theme.OASIS.Side"
+            android:windowSoftInputMode="adjustResize"
             tools:ignore="LockedOrientationActivity"
             android:screenOrientation="portrait"
             android:exported="false" />
@@ -54,7 +46,7 @@
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
-                android:name="android.support.FILE_PATHS"
+                android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
     </application>

@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
 private val json = kotlinx.serialization.json.Json {
     ignoreUnknownKeys = true
     encodeDefaults = true
-    explicitNulls = true
+    explicitNulls = false
 }
 
 object ApiClient {

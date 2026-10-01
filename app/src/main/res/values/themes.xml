@@ -21,16 +21,4 @@
         <item name="fontFamily">@font/jetbrainsmono</item>
         <item name="android:fontFamily">@font/jetbrainsmono</item>
     </style>
-
-    <!-- страницы левого меню выезжают слева -->
-    <style name="Theme.OASIS.Side">
-        <item name="android:windowAnimationStyle">@style/SideAnimation</item>
-    </style>
-
-    <style name="SideAnimation" parent="@android:style/Animation.Activity">
-        <item name="android:activityOpenEnterAnimation">@android:anim/slide_in_left</item>
-        <item name="android:activityOpenExitAnimation">@anim/stay</item>
-        <item name="android:activityCloseEnterAnimation">@anim/stay</item>
-        <item name="android:activityCloseExitAnimation">@anim/slide_out_left</item>
-    </style>
 </resources>

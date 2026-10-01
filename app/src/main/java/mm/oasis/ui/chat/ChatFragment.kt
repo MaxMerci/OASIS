@@ -27,7 +27,7 @@ import mm.oasis.repository.ChatRepository
 import mm.oasis.repository.ProfileRepository
 import mm.oasis.serialization.dto.*
 import mm.oasis.serialization.storage.ChatData
-import mm.oasis.ui.objects.MessageMenu
+import mm.oasis.ui.objects.ContextMenu
 
 class ChatFragment : Fragment() {
 
@@ -146,22 +146,22 @@ class ChatFragment : Fragment() {
     private fun showMessageMenu(message: Message) {
         val messages = ChatRepository.currentChat.messages
         val idle = generation?.isActive != true
-        val items = mutableListOf<MessageMenu.Item>()
+        val items = mutableListOf<ContextMenu.Item>()
 
-        if (message.display.isNotBlank()) items += MessageMenu.Item("COPY") { copy(message.display) }
+        if (message.display.isNotBlank()) items += ContextMenu.Item("COPY") { copy(message.display) }
         when (message.role) {
             // править можно только последний запрос, иначе пришлось бы переписывать всю ветку
             Message.MessageRole.USER ->
                 if (idle && message === messages.lastOrNull { it.role == Message.MessageRole.USER }) {
-                    items += MessageMenu.Item("EDIT") { input.startEditing(message) }
+                    items += ContextMenu.Item("EDIT") { input.startEditing(message) }
                 }
             Message.MessageRole.ASSISTANT ->
                 if (idle && message === messages.lastOrNull()) {
-                    items += MessageMenu.Item("REGENERATE") { regenerate(message) }
+                    items += ContextMenu.Item("REGENERATE") { regenerate(message) }
                 }
             else -> {}
         }
-        MessageMenu.show(messagesList, touchX, touchY, items)
+        ContextMenu.show(messagesList, touchX, touchY, items)
     }
 
     private fun copy(text: String) {
@@ -190,6 +190,7 @@ class ChatFragment : Fragment() {
             if (index != -1) currentChat.messages = currentChat.messages.take(index)
             input.finishEditing()
         }
+        val uris = input.attachmentUris()
         input.clear()
 
         if (currentChat.messages.isEmpty()) {
@@ -197,7 +198,7 @@ class ChatFragment : Fragment() {
                 ?.let { currentChat.name = it.trim().take(32) }
         }
         currentChat.messages += request.messages
-        generate(currentChat, request)
+        generate(currentChat, request, uris)
     }
 
     // ответ удаляется целиком и генерируется заново на ту же историю
@@ -211,7 +212,7 @@ class ChatFragment : Fragment() {
         generate(currentChat, input.buildRequest(emptyList()))
     }
 
-    private fun generate(currentChat: ChatData, request: Request) {
+    private fun generate(currentChat: ChatData, request: Request, uris: List<Uri> = emptyList()) {
         val history = currentChat.messages
             .filter { it.role != Message.MessageRole.ASSISTANT || it.display.isNotBlank() }
             .map { it.copy(toolCalls = null) } // вызовы инструментов в чате только для показа
@@ -229,6 +230,12 @@ class ChatFragment : Fragment() {
         input.setGenerating(true)
         generation = lifecycleScope.launch {
             try {
+                if (uris.isNotEmpty()) {
+                    Attachments.saveInput(uris)
+                    if (view != null) currentChat.messages
+                        .filter { it.role == Message.MessageRole.USER }
+                        .forEach(messagesAdapter::notifyMessageChanged)
+                }
                 Agent.use(request.copy(messages = history)).collect { flow ->
                     assistant.streamDisplay(flow.content)
                     assistant.reasoning = (assistant.reasoning ?: "") + flow.reasoning

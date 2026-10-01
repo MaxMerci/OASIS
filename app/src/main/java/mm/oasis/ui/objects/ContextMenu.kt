@@ -1,7 +1,7 @@
 package mm.oasis.ui.objects
 
+import android.annotation.SuppressLint
 import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -13,9 +13,10 @@ import mm.oasis.R
 import androidx.core.graphics.drawable.toDrawable
 
 
-object MessageMenu {
+object ContextMenu {
     data class Item(val text: String, val onClick: () -> Unit)
 
+    @SuppressLint("InflateParams")
     fun show(anchor: View, x: Int, y: Int, items: List<Item>) {
         if (items.isEmpty()) return
         val inflater = LayoutInflater.from(anchor.context)

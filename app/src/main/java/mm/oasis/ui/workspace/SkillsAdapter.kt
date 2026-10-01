@@ -1,4 +1,4 @@
-package mm.oasis.ui.agent
+package mm.oasis.ui.workspace
 
 import android.annotation.SuppressLint
 import android.view.LayoutInflater
@@ -28,7 +28,7 @@ class SkillsAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val skill = items[position]
-        holder.name.text = skill.name
+        holder.name.text = if (skill.builtin) "${skill.name} [BUILT-IN]" else skill.name
         holder.description.text = skill.description
         holder.description.visibility = if (skill.description.isBlank()) View.GONE else View.VISIBLE
         holder.itemView.setOnClickListener { onClick(skill) }

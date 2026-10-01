@@ -42,7 +42,7 @@
         android:contentDescription="DELETE"
         android:padding="12dp"
         android:src="@drawable/ic_close"
-        android:tint="@color/hint"
+        android:tint="@color/danger"
         xmlns:tools="http://schemas.android.com/tools"
         tools:ignore="HardcodedText,UseAppTint" />
 </LinearLayout>

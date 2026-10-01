@@ -16,7 +16,8 @@ object Oasis {
         registerTools(listOf(
             WebSearch,
             ReadSkill,
-            LinkFile
+            LinkFile,
+            RunCommand
         ))
     }
 }

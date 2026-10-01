@@ -2,6 +2,7 @@ package mm.oasis.ui.chat.message
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.graphics.Paint
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.LinearLayout
@@ -9,8 +10,11 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import io.noties.markwon.Markwon
 import mm.oasis.R
+import mm.oasis.remote.Workspace
 import mm.oasis.serialization.dto.Message
 import mm.oasis.serialization.dto.MessageContent
+import mm.oasis.ui.objects.WorkspaceFiles
+import java.io.File
 
 class UserViewHolder(
     view: View,
@@ -53,9 +57,16 @@ class UserViewHolder(
             is MessageContent.Parts -> {
                 content.parts.forEach { part ->
                     if (!part.fileName.isNullOrEmpty()) {
-                        val itemView = inflater.inflate(R.layout.item_attachment, attContainer, false)
-                        itemView.findViewById<TextView>(R.id.attachment_name).text = part.fileName
-                        attContainer.addView(itemView)
+                        val chip = inflater.inflate(R.layout.item_attachment, attContainer, false)
+                        val name = chip.findViewById<TextView>(R.id.attachment_name)
+                        val path = "input/" + File(part.fileName!!).name
+                        name.text = part.fileName
+                        if (Workspace.resolve(path) == null) {
+                            chip.alpha = 0.5f
+                            name.paintFlags = name.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
+                        }
+                        chip.setOnClickListener { WorkspaceFiles.open(itemView, path) }
+                        attContainer.addView(chip)
                     }
                 }
             }

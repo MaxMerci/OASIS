@@ -7,12 +7,14 @@ import android.util.Base64
 import android.webkit.MimeTypeMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import mm.oasis.Oasis
 import mm.oasis.serialization.dto.ContentPart
 import mm.oasis.serialization.dto.FileData
 import mm.oasis.serialization.dto.ImageUrl
 import mm.oasis.serialization.dto.InputAudio
 import mm.oasis.serialization.dto.VideoUrl
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.InputStream
 import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
@@ -40,10 +42,7 @@ object Attachments {
         val (queriedName, queriedSize) = query(resolver, uri)
         val fileName = queriedName ?: uri.lastPathSegment?.substringAfterLast('/') ?: "file"
         val originalMime = resolveMime(resolver, uri, fileName)
-        val exportMime = if (originalMime.startsWith("application/vnd.google-apps.")) {
-            resolver.getStreamTypes(uri, "*/*")?.let { types -> EXPORT_TYPES.firstOrNull { it in types } }
-                ?: throw IllegalStateException("CAN'T EXPORT $fileName")
-        } else null
+        val exportMime = exportMime(resolver, uri, originalMime, fileName)
         val mimeType = exportMime ?: originalMime
         val kind = when {
             mimeType.startsWith("image/") -> Kind.IMAGE
@@ -59,12 +58,7 @@ object Attachments {
         if (exportMime == null && queriedSize != null && queriedSize > limit) {
             throw IllegalStateException("$fileName IS TOO LARGE (${formatSize(queriedSize)} > ${formatSize(limit)})")
         }
-        val stream = if (exportMime != null) {
-            resolver.openTypedAssetFileDescriptor(uri, exportMime, null)?.createInputStream()
-        } else {
-            resolver.openInputStream(uri)
-        } ?: throw IllegalStateException("CAN'T READ $fileName")
-        val bytes = readLimited(stream, fileName, limit)
+        val bytes = readLimited(open(resolver, uri, exportMime, fileName), fileName, limit)
         val size = queriedSize?.takeIf { exportMime == null } ?: bytes.size.toLong()
 
         when (kind) {
@@ -91,6 +85,30 @@ object Attachments {
             }
         }
     }
+
+    suspend fun saveInput(uris: List<Uri>) = withContext(Dispatchers.IO) {
+        val resolver = Oasis.applicationContext.contentResolver
+        val dir = Workspace.input.apply { deleteRecursively(); mkdirs() }
+        uris.forEach { uri ->
+            runCatching {
+                val fileName = File(query(resolver, uri).first ?: uri.lastPathSegment ?: "file").name
+                val exportMime = exportMime(resolver, uri, resolveMime(resolver, uri, fileName), fileName)
+                open(resolver, uri, exportMime, fileName).use { input ->
+                    File(dir, fileName).outputStream().use { input.copyTo(it) }
+                }
+            }
+        }
+    }
+
+    private fun exportMime(resolver: ContentResolver, uri: Uri, mime: String, fileName: String): String? =
+        if (mime.startsWith("application/vnd.google-apps.")) {
+            resolver.getStreamTypes(uri, "*/*")?.let { types -> EXPORT_TYPES.firstOrNull { it in types } }
+                ?: throw IllegalStateException("CAN'T EXPORT $fileName")
+        } else null
+
+    private fun open(resolver: ContentResolver, uri: Uri, exportMime: String?, fileName: String): InputStream =
+        (if (exportMime != null) resolver.openTypedAssetFileDescriptor(uri, exportMime, null)?.createInputStream()
+        else resolver.openInputStream(uri)) ?: throw IllegalStateException("CAN'T READ $fileName")
 
     // размер от провайдера бывает неизвестен или врет, поэтому режем и при чтении
     // битый документ - то же, что нечитаемый бинарник
