@@ -1,6 +1,7 @@
 package mm.oasis.remote
 
 import mm.oasis.Oasis
+import mm.oasis.repository.ProfileRepository
 import java.io.File
 
 /**
@@ -8,9 +9,11 @@ import java.io.File
  */
 object AgentFiles {
     const val AGENT_FILE = "AGENT.md"
+    const val MEMORY_FILE = "MEMORY.md"
+    private const val ASSET_SKILLS = "skills"
     private const val DESCRIPTION_LIMIT = 200
 
-    data class Skill(val name: String, val description: String, val content: String)
+    data class Skill(val name: String, val description: String, val content: String, val builtin: Boolean = false)
 
     private val dir: File get() = File(Oasis.filesDir, "agent").apply { mkdirs() }
     private val skillsDir: File get() = File(dir, "skills").apply { mkdirs() }
@@ -29,18 +32,33 @@ object AgentFiles {
         return defaultAgent()
     }
 
-    fun defaultAgent(): String =
-        Oasis.applicationContext.assets.open(AGENT_FILE).use { it.readBytes().decodeToString() }
+    fun defaultAgent(): String = asset(AGENT_FILE)
+
+    private fun asset(path: String): String =
+        Oasis.applicationContext.assets.open(path).use { it.readBytes().decodeToString() }
+
+    /* MEMORY.md */
+
+    fun readMemory(): String? =
+        File(Workspace.dir, MEMORY_FILE).takeIf { it.isFile }?.readText()?.trim()?.ifEmpty { null }
 
     /* SKILLS */
 
+    private fun builtinNames(): List<String> =
+        Oasis.applicationContext.assets.list(ASSET_SKILLS).orEmpty()
+            .filter { it.endsWith(".md") }.map { it.removeSuffix(".md") }.sorted()
+
+    fun isBuiltin(name: String) = normalizeName(name) in builtinNames()
+
     fun skills(): List<Skill> =
-        skillsDir.listFiles { f -> f.isFile && f.extension == "md" }.orEmpty()
-            .sortedBy { it.name }
-            .map { f -> f.readText().let { Skill(f.nameWithoutExtension, describe(it), it) } }
+        builtinNames().map { name -> asset("$ASSET_SKILLS/$name.md").let { Skill(name, describe(it), it, true) } } +
+                skillsDir.listFiles { f -> f.isFile && f.extension == "md" && !isBuiltin(f.nameWithoutExtension) }.orEmpty()
+                    .sortedBy { it.name }
+                    .map { f -> f.readText().let { Skill(f.nameWithoutExtension, describe(it), it) } }
 
     fun readSkill(name: String): String? =
-        File(skillsDir, "${normalizeName(name)}.md").takeIf { it.isFile }?.readText()
+        if (isBuiltin(name)) asset("$ASSET_SKILLS/${normalizeName(name)}.md")
+        else File(skillsDir, "${normalizeName(name)}.md").takeIf { it.isFile }?.readText()
 
     fun writeSkill(name: String, content: String, oldName: String? = null): String {
         val normalized = normalizeName(name)
@@ -105,6 +123,7 @@ object AgentFiles {
             lines += listOf(
                 "# Project Context",
                 "",
+                "running ID: ${ProfileRepository.currentProfile?.model?.id}",
                 "Loaded project context:",
                 "$AGENT_FILE: persona/tone. Follow it unless higher-priority instructions override.",
                 "",
@@ -114,6 +133,8 @@ object AgentFiles {
                 ""
             )
         }
+
+        readMemory()?.let { lines += listOf("## $MEMORY_FILE", "", it, "") }
 
         if (skills.isNotEmpty()) {
             lines += listOf(
@@ -135,11 +156,15 @@ object AgentFiles {
         if (workspace.isNotEmpty()) {
             lines += listOf(
                 "## Workspace",
-                "Files the user can open. To give one to the user, call `link_file` with its path.",
+                "Workspace root is the working directory of `run_command`. Files the user can open; to give one to the user, call `link_file` with its path.",
                 "<workspace_files>"
             )
             workspace.forEach { lines += "  $it" }
             lines += "</workspace_files>"
+        }
+
+        Workspace.inputFiles().takeIf { it.isNotEmpty() }?.let {
+            lines += "Files from the user's latest attachments (wiped when new ones arrive): ${it.joinToString()}"
         }
 
         return lines.joinToString("\n").trim().ifEmpty { null }

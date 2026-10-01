@@ -227,6 +227,8 @@ class RequestView @JvmOverloads constructor(
         updateSendState()
     }
 
+    fun attachmentUris(): List<Uri> = attachmentsAdapter.getUris()
+
     fun clear() {
         content.text.clear()
         attachmentsAdapter.clear()

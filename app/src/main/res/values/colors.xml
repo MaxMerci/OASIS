@@ -4,6 +4,7 @@
     <color name="bg">#FAFAFA</color>
     <color name="hint">#777777</color>
     <color name="text">#111111</color>
+    <color name="danger">#E53935</color>
     <color name="system_text">#666666</color>
     <!-- подсветка кода -->
     <color name="code_keyword">#8E3FB3</color>

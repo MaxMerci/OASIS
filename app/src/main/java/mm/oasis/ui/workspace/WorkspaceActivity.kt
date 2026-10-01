@@ -1,12 +1,15 @@
 package mm.oasis.ui.workspace
 
+import android.net.Uri
 import android.os.Bundle
+import android.provider.OpenableColumns
 import android.view.View
-import android.widget.HorizontalScrollView
-import android.widget.LinearLayout
+import android.widget.Button
+import android.widget.EditText
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -14,31 +17,39 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import mm.oasis.Oasis
 import mm.oasis.R
-import mm.oasis.remote.Workspace
+import mm.oasis.remote.AgentFiles
 import mm.oasis.ui.objects.DialogField
 import mm.oasis.ui.objects.FieldType
 import mm.oasis.ui.objects.ModalDialogBuilder
-import mm.oasis.ui.objects.WorkspaceFiles
-import java.io.File
-import java.nio.file.Files
 
-/**
- * Мини-проводник: открывается в workspace, но позволяет подняться до корня хранилища приложения (не выше)
- */
 class WorkspaceActivity : AppCompatActivity() {
-    private lateinit var root: File
-    private lateinit var current: File
+    private enum class Tab { AGENT, SKILLS, WORKSPACE }
 
-    private lateinit var upButton: TextView
-    private lateinit var pathBar: LinearLayout
-    private lateinit var pathScroll: HorizontalScrollView
-    private lateinit var filesList: RecyclerView
-    private lateinit var filesEmpty: TextView
+    private lateinit var tabAgent: TextView
+    private lateinit var tabSkills: TextView
+    private lateinit var tabWorkspace: TextView
+    private lateinit var workspace: WorkspacePanel
+    private lateinit var agentPanel: View
+    private lateinit var skillsPanel: View
+    private lateinit var skillEditor: View
 
-    private val filesAdapter = FilesAdapter(
-        onClick = { if (it.isDirectory) navigate(it) else WorkspaceFiles.open(filesList, it) },
-        onDelete = ::confirmDelete,
-    )
+    private lateinit var agentInput: EditText
+    private lateinit var skillsEmpty: TextView
+    private lateinit var skillName: EditText
+    private lateinit var skillContent: EditText
+    private lateinit var skillDelete: Button
+    private lateinit var skillSave: Button
+
+    private val skillsAdapter = SkillsAdapter { openEditor(it.name, it.content, readOnly = it.builtin) }
+
+    private var tab = Tab.AGENT
+    private var savedAgent = ""
+    private var editing: String? = null
+    private var editorOpen = false
+
+    private val importLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        uri?.let { importSkill(it) }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         Oasis.init(this)
@@ -47,134 +58,175 @@ class WorkspaceActivity : AppCompatActivity() {
         setContentView(R.layout.activity_workspace)
         applyWindowInsets()
 
-        upButton = findViewById(R.id.upButton)
-        pathBar = findViewById(R.id.pathBar)
-        pathScroll = findViewById(R.id.pathScroll)
-        filesList = findViewById(R.id.filesList)
-        filesEmpty = findViewById(R.id.filesEmpty)
-        filesList.adapter = filesAdapter
+        tabAgent = findViewById(R.id.tabAgent)
+        tabSkills = findViewById(R.id.tabSkills)
+        tabWorkspace = findViewById(R.id.tabWorkspace)
+        workspace = WorkspacePanel(findViewById(R.id.workspacePanel))
+        agentPanel = findViewById(R.id.agentPanel)
+        skillsPanel = findViewById(R.id.skillsPanel)
+        skillEditor = findViewById(R.id.skillEditor)
+        agentInput = findViewById(R.id.agentInput)
+        skillsEmpty = findViewById(R.id.skillsEmpty)
+        skillName = findViewById(R.id.skillName)
+        skillContent = findViewById(R.id.skillContent)
+        skillDelete = findViewById(R.id.skillDelete)
+        skillSave = findViewById(R.id.skillSave)
 
-        root = File(applicationInfo.dataDir).canonicalFile
-        current = savedInstanceState?.getString(KEY_DIR)?.let(::File)?.takeIf { inside(it) && it.isDirectory }
-            ?: Workspace.dir.canonicalFile
+        findViewById<RecyclerView>(R.id.skillsList).adapter = skillsAdapter
 
-        upButton.setOnClickListener { goUp() }
+        savedAgent = AgentFiles.readAgent()
+        agentInput.setText(savedAgent)
 
-        navigate(current)
-    }
+        tabAgent.setOnClickListener { selectTab(Tab.AGENT) }
+        tabSkills.setOnClickListener { selectTab(Tab.SKILLS) }
+        tabWorkspace.setOnClickListener { selectTab(Tab.WORKSPACE) }
 
-    override fun onResume() {
-        super.onResume()
-        refresh()
-    }
+        findViewById<Button>(R.id.agentSave).setOnClickListener { saveAgent() }
+        findViewById<Button>(R.id.agentReset).setOnClickListener { resetAgent() }
 
-    override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-        outState.putString(KEY_DIR, current.path)
+        findViewById<Button>(R.id.skillNew).setOnClickListener { openEditor(null, "") }
+        findViewById<Button>(R.id.skillImport).setOnClickListener { importLauncher.launch(arrayOf("*/*")) }
+        findViewById<Button>(R.id.skillCancel).setOnClickListener { closeEditor() }
+        skillSave.setOnClickListener { saveSkill() }
+        skillDelete.setOnClickListener { deleteSkill() }
+
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() = onBack()
+        })
+
+        refreshSkills()
+        selectTab(Tab.AGENT)
     }
 
     private fun applyWindowInsets() {
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.root)) { v, insets ->
+        val root = findViewById<View>(R.id.root)
+        ViewCompat.setOnApplyWindowInsetsListener(root) { v, insets ->
             val bars = insets.getInsets(
                 WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
             )
-            v.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            v.setPadding(bars.left, bars.top, bars.right, maxOf(bars.bottom, ime.bottom))
             WindowInsetsCompat.CONSUMED
         }
     }
 
-    private fun inside(file: File): Boolean {
-        val path = file.canonicalFile.path
-        return path == root.path || path.startsWith(root.path + File.separator)
+    private fun selectTab(newTab: Tab) {
+        tab = newTab
+        tabAgent.setBackgroundResource(if (tab == Tab.AGENT) R.drawable.ic_bg_g_r else android.R.color.transparent)
+        tabSkills.setBackgroundResource(if (tab == Tab.SKILLS) R.drawable.ic_bg_g_r else android.R.color.transparent)
+        tabWorkspace.setBackgroundResource(if (tab == Tab.WORKSPACE) R.drawable.ic_bg_g_r else android.R.color.transparent)
+        workspace.view.visibility = if (tab == Tab.WORKSPACE) View.VISIBLE else View.GONE
+        if (tab == Tab.WORKSPACE) workspace.refresh()
+        agentPanel.visibility = if (tab == Tab.AGENT) View.VISIBLE else View.GONE
+        skillsPanel.visibility = if (tab == Tab.SKILLS && !editorOpen) View.VISIBLE else View.GONE
+        skillEditor.visibility = if (tab == Tab.SKILLS && editorOpen) View.VISIBLE else View.GONE
     }
 
-    private fun goUp() {
-        if (current == root) return
-        current.parentFile?.takeIf { inside(it) }?.let(::navigate)
+    private fun onBack() {
+        when {
+            tab == Tab.SKILLS && editorOpen -> closeEditor()
+            agentInput.text.toString() != savedAgent -> confirm("UNSAVED AGENT.md", "Discard changes?") { finish() }
+            else -> finish()
+        }
     }
 
-    private fun navigate(dir: File) {
-        val target = dir.canonicalFile
-        if (!inside(target) || !target.isDirectory) {
-            toast("CAN'T OPEN ${dir.name}")
+    /* AGENT.md */
+
+    private fun saveAgent() {
+        savedAgent = agentInput.text.toString()
+        AgentFiles.writeAgent(savedAgent)
+        toast("AGENT.md SAVED")
+    }
+
+    private fun resetAgent() {
+        confirm("RESET AGENT.md", "Restore the default text?") {
+            savedAgent = AgentFiles.resetAgent()
+            agentInput.setText(savedAgent)
+            toast("AGENT.md RESET")
+        }
+    }
+
+    /* SKILLS */
+
+    private fun refreshSkills() {
+        val skills = AgentFiles.skills()
+        skillsAdapter.submit(skills)
+        skillsEmpty.visibility = if (skills.isEmpty()) View.VISIBLE else View.GONE
+    }
+
+    private fun openEditor(name: String?, content: String, suggestedName: String? = null, readOnly: Boolean = false) {
+        editing = name
+        editorOpen = true
+        skillName.setText(name ?: suggestedName.orEmpty())
+        skillContent.setText(content)
+        listOf(skillName, skillContent).forEach { it.isFocusable = !readOnly; it.isFocusableInTouchMode = !readOnly }
+        skillSave.visibility = if (readOnly) View.GONE else View.VISIBLE
+        skillDelete.visibility = if (name != null && !readOnly) View.VISIBLE else View.GONE
+        selectTab(Tab.SKILLS)
+    }
+
+    private fun closeEditor() {
+        editorOpen = false
+        editing = null
+        refreshSkills()
+        selectTab(Tab.SKILLS)
+    }
+
+    private fun saveSkill() {
+        val name = AgentFiles.normalizeName(skillName.text.toString())
+        if (name.isEmpty()) {
+            toast("ENTER SKILL NAME")
             return
         }
-        current = target
-        upButton.alpha = if (current == root) 0.3f else 1f
-        buildPath()
-        refresh()
-        filesList.scrollToPosition(0)
-    }
-
-    private fun refresh() {
-        if (!current.isDirectory) {
-            var dir: File? = current
-            while (dir != null && dir != root && !dir.isDirectory) dir = dir.parentFile
-            navigate(dir?.takeIf { inside(it) } ?: root)
+        if (AgentFiles.isBuiltin(name)) {
+            toast("$name IS A BUILT-IN SKILL")
             return
         }
-        val files = current.listFiles().orEmpty()
-            .filter { inside(it) }
-            .sortedWith(compareBy<File>({ !it.isDirectory }, { it.name.lowercase() }))
-        filesAdapter.submit(files)
-        filesEmpty.visibility = if (files.isEmpty()) View.VISIBLE else View.GONE
-    }
-
-    private fun buildPath() {
-        pathBar.removeAllViews()
-        val chain = generateSequence(current) { it.parentFile?.takeIf { p -> inside(p) } }
-            .takeWhile { inside(it) }
-            .toList()
-            .asReversed()
-
-        chain.forEachIndexed { i, dir ->
-            if (i > 0) pathBar.addView(segment("/", null))
-            val name = if (dir == root) "OASIS" else dir.name
-            pathBar.addView(segment(name, dir.takeIf { it != current }))
+        val write = {
+            AgentFiles.writeSkill(name, skillContent.text.toString(), editing)
+            toast("SKILL $name SAVED")
+            closeEditor()
         }
-        pathScroll.post { pathScroll.fullScroll(View.FOCUS_RIGHT) }
-    }
-
-    private fun segment(text: String, target: File?) = TextView(this).apply {
-        this.text = text
-        textSize = 13f
-        val pad = (6 * resources.displayMetrics.density).toInt()
-        setPadding(pad, 0, pad, 0)
-        gravity = android.view.Gravity.CENTER_VERTICAL
-        layoutParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT
-        )
-        setTextColor(ContextCompat.getColor(context, if (target == null && text != "/") R.color.text else R.color.hint))
-        if (target != null) {
-            setBackgroundResource(android.R.drawable.list_selector_background)
-            setOnClickListener { navigate(target) }
+        // перезапись чужого скила только после подтверждения
+        if (name != editing?.let(AgentFiles::normalizeName) && AgentFiles.skillExists(name)) {
+            confirm("SKILL EXISTS", "Overwrite $name?", write)
+        } else {
+            write()
         }
     }
 
-    private fun confirmDelete(file: File) {
-        val kind = if (file.isDirectory) "FOLDER" else "FILE"
+    private fun deleteSkill() {
+        val name = editing ?: return
+        confirm("DELETE SKILL", "Delete $name?") {
+            AgentFiles.deleteSkill(name)
+            closeEditor()
+        }
+    }
+
+    private fun importSkill(uri: Uri) {
+        try {
+            val content = contentResolver.openInputStream(uri)?.use { it.readBytes().decodeToString() }
+                ?: throw IllegalStateException("CAN'T READ FILE")
+            val fileName = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { if (it.moveToFirst()) it.getString(0) else null }
+            // SKILL.md из чужих наборов называется одинаково, поэтому имя из frontmatter важнее имени файла
+            val name = AgentFiles.frontmatterName(content)
+                ?: fileName?.substringBeforeLast('.')?.takeUnless { it.equals("skill", true) }
+            openEditor(null, content, name?.let(AgentFiles::normalizeName))
+        } catch (e: Exception) {
+            toast(e.message ?: e.toString())
+        }
+    }
+
+    private fun confirm(title: String, text: String, onOk: () -> Unit) {
         ModalDialogBuilder(this)
-            .setTitle("DELETE $kind")
-            .addField(DialogField("", "Delete ${file.name}? This can't be undone.", FieldType.INFO))
-            .onOk {
-                if (!delete(file)) toast("CAN'T DELETE ${file.name}")
-                refresh()
-            }
+            .setTitle(title)
+            .addField(DialogField("", text, FieldType.INFO))
+            .onOk { onOk() }
             .show()
-    }
-
-    private fun delete(file: File): Boolean {
-        if (file.isDirectory && !Files.isSymbolicLink(file.toPath())) {
-            file.listFiles()?.forEach { delete(it) }
-        }
-        return file.delete()
     }
 
     private fun toast(text: String) {
         Snackbar.make(findViewById(R.id.root), text, Snackbar.LENGTH_SHORT).show()
-    }
-
-    private companion object {
-        const val KEY_DIR = "dir"
     }
 }
