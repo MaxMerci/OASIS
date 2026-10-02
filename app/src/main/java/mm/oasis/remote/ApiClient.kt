@@ -95,6 +95,9 @@ object ApiClient {
         return models
     }
 
+    /**
+     * В основном - это шуточная функция, не обращайте внимания
+     */
     fun findAvatar(q: String): String {
         // оооууу да, Маквин готов!
         val favicon = "https://t1.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url="

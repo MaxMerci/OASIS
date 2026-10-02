@@ -8,24 +8,25 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.builtins.serializer
 import mm.oasis.remote.Storage
+
+@Serializable
+private class Index(val ids: List<String>, val current: Int)
+
+private const val INDEX = "index"
 
 abstract class Repository<T>(
     private val name: String,
-    private val itemSerializer: KSerializer<T>
+    private val itemSerializer: KSerializer<T>,
+    private val id: (T) -> String
 ) {
     private val repositoryScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val io = Dispatchers.IO.limitedParallelism(1)
     private val storage = Storage(name)
-    private val listSerializer = ListSerializer(itemSerializer)
 
-    private val initialItems = storage.get(name, listSerializer) ?: emptyList()
-    private val initialIndex = (storage.get("current_index", Int.serializer()) ?: 0).let {
-        if (initialItems.isEmpty()) 0 else it.coerceIn(0, initialItems.size - 1)
-    }
-
-    private val _state = MutableStateFlow(RepositoryState(initialItems, initialIndex))
+    private val _state = MutableStateFlow(load())
     val state: StateFlow<RepositoryState<T>> = _state.asStateFlow()
 
     val items: List<T> get() = _state.value.items
@@ -84,13 +85,33 @@ abstract class Repository<T>(
 
     fun save() {
         val stateToSave = _state.value
-        repositoryScope.launch(Dispatchers.IO) {
-            // EncryptedFile пишется через delete + create, два save() одновременно = потерянный файл
-            synchronized(storage) {
-                storage.put(name, stateToSave.items, listSerializer)
-                storage.put("current_index", stateToSave.currentIndex, Int.serializer())
-                storage.flush()
+        repositoryScope.launch(io) {
+            try {
+                write(stateToSave)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
+    }
+
+    private fun load(): RepositoryState<T> {
+        try {
+            storage.migrate { old ->
+                val items = old[name]?.let { storage.json.decodeFromString(ListSerializer(itemSerializer), it) }.orEmpty()
+                write(RepositoryState(items, old["current_index"]?.toIntOrNull() ?: 0))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        val index = storage.get(INDEX, Index.serializer()) ?: return RepositoryState()
+        val items = index.ids.mapNotNull { storage.get(it, itemSerializer) }
+        return RepositoryState(items, index.current.coerceIn(0, (items.size - 1).coerceAtLeast(0)))
+    }
+
+    private fun write(state: RepositoryState<T>) {
+        val ids = state.items.map(id)
+        state.items.forEachIndexed { i, item -> storage.put(ids[i], item, itemSerializer) }
+        storage.put(INDEX, Index(ids, state.currentIndex), Index.serializer())
+        (storage.keys() - ids.toSet() - INDEX).forEach(storage::remove)
     }
 }

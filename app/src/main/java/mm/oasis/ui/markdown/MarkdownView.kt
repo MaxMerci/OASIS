@@ -11,6 +11,7 @@ import android.widget.TextView
 import io.noties.markwon.Markwon
 import mm.oasis.R
 
+/* Hardcoded */
 class MarkdownView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
@@ -65,7 +66,6 @@ class MarkdownView @JvmOverloads constructor(
             return segments
         }
 
-        // $...$ в одну строку - инлайн формула, многострочная - блочная
         fun latexFix(text: String): String {
             val regex = Regex("""(?<!\\)\$((?:[^$]|\\\$)+?)(?<!\\)\$""")
             return regex.replace(text) {

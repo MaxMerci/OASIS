@@ -2,7 +2,7 @@ package mm.oasis.repository
 
 import mm.oasis.serialization.storage.ChatData
 
-object ChatRepository : Repository<ChatData>("chats", ChatData.serializer()) {
+object ChatRepository : Repository<ChatData>("chats", ChatData.serializer(), ChatData::id) {
 
     val currentChat: ChatData
         get() {

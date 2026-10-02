@@ -8,6 +8,7 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import mm.oasis.R
 
+
 object CodeHighlighter {
     private val HASH_COMMENTS = setOf(
         "python", "py", "bash", "sh", "shell", "zsh", "ruby", "rb", "yaml", "yml", "toml",

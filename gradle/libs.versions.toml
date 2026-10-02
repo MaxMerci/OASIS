@@ -8,7 +8,7 @@ appcompat = "1.8.0"
 material = "1.14.0"
 ktor = "3.6.0"
 coroutines = "1.11.0"
-securityCrypto = "1.1.0"
+tink = "1.23.0"
 dotsindicator = "5.1.1"
 serialization = "1.11.0"
 compose-bom = "2026.09.00"
@@ -22,7 +22,7 @@ jlatexmath = "0.0.24"
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "coreSplashscreen" }
-androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
+tink-android = { module = "com.google.crypto.tink:tink-android", version.ref = "tink" }
 androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "androidx-activity-compose" }

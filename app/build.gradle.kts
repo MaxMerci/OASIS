@@ -12,12 +12,11 @@ android {
         applicationId = "mm.oasis"
         minSdk = 26
         targetSdk = 37
-        versionCode = 4
-        versionName = "1.2.0"
+        versionCode = 5
+        versionName = "1.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-
 
     buildTypes {
         release {
@@ -50,7 +49,6 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.runtime)
     implementation(libs.androidx.swiperefreshlayout)
-    implementation(libs.androidx.security.crypto)
 
     // UI & Compose
     implementation(libs.androidx.ui)
@@ -64,6 +62,9 @@ dependencies {
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
+
+    // Crypto
+    implementation(libs.tink.android)
 
     // Kotlinx
     implementation(libs.kotlinx.coroutines.core)

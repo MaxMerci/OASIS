@@ -1,104 +1,72 @@
 package mm.oasis.remote
 
-import androidx.security.crypto.EncryptedFile
-import androidx.security.crypto.MasterKey
-import mm.oasis.Oasis
+import com.google.crypto.tink.KeyTemplates
+import com.google.crypto.tink.RegistryConfiguration
+import com.google.crypto.tink.StreamingAead
+import com.google.crypto.tink.integration.android.AndroidKeysetManager
+import com.google.crypto.tink.streamingaead.StreamingAeadConfig
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.serializer
+import mm.oasis.Oasis
 import java.io.File
 
-class Storage(
-    name: String,
-    val json: Json = Json {
-        prettyPrint = true
+class Storage(name: String) {
+    val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
-) {
-    private val context = Oasis.applicationContext
 
-    private val file = File(context.filesDir, "$name.secure")
+    private val dir = File(Oasis.applicationContext.filesDir, name).apply { mkdirs() }
+    private val legacy = File(dir.parentFile, "$name.secure")
+    private val hashes = mutableMapOf<String, Int>()
 
-    private val masterKey = MasterKey.Builder(context)
-        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-        .build()
+    fun keys(): Set<String> = dir.list()?.toSet().orEmpty()
 
-    var cache: MutableMap<String, String> = mutableMapOf()
-
-    init {
-        load()
-    }
-
-    private fun getEncryptedFile(targetFile: File): EncryptedFile {
-        return EncryptedFile.Builder(
-            context,
-            targetFile,
-            masterKey,
-            EncryptedFile.FileEncryptionScheme.AES256_GCM_HKDF_4KB
-        ).build()
-    }
-
-    inline fun <reified T> put(key: String, value: T) {
-        cache[key] = json.encodeToString(
-            json.serializersModule.serializer(),
-            value
-        )
+    fun <T> get(key: String, serializer: KSerializer<T>): T? = try {
+        val text = read(File(dir, key))
+        json.decodeFromString(serializer, text).also { hashes[key] = text.hashCode() }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 
     fun <T> put(key: String, value: T, serializer: KSerializer<T>) {
-        cache[key] = json.encodeToString(serializer, value)
+        val text = json.encodeToString(serializer, value)
+        if (hashes[key] == text.hashCode()) return
+        val tmp = File(dir, "$key.tmp")
+        aead.newEncryptingStream(tmp.outputStream(), key.toByteArray()).use { it.write(text.toByteArray()) }
+        tmp.renameTo(File(dir, key))
+        hashes[key] = text.hashCode()
     }
 
-    inline fun <reified T> get(key: String): T? {
-        val raw = cache[key] ?: return null
-        val serializer = json.serializersModule.serializer<T>()
-        return try {
-            json.decodeFromString(serializer, raw)
-        } catch (e: Exception) {
-            null
-        }
+    fun remove(key: String) {
+        File(dir, key).delete()
+        hashes.remove(key)
     }
 
-    fun <T> get(key: String, serializer: KSerializer<T>): T? {
-        val raw = cache[key] ?: return null
-        return try {
-            json.decodeFromString(serializer, raw)
-        } catch (e: Exception) {
-            null
-        }
+    fun migrate(block: (Map<String, String>) -> Unit) {
+        if (!legacy.exists()) return
+        block(json.decodeFromString(read(legacy)))
+        legacy.delete()
     }
 
-    private fun load() {
-        if (!file.exists()) return
+    private fun read(file: File) = aead.newDecryptingStream(file.inputStream(), file.name.toByteArray())
+        .use { it.readBytes().decodeToString() }
 
-        try {
-            val text = getEncryptedFile(file).openFileInput().use {
-                it.readBytes().decodeToString()
-            }
-
-            if (text.isBlank()) return
-
-            cache = json.decodeFromString<Map<String, String>>(text).toMutableMap()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            cache = mutableMapOf()
-        }
-    }
-
-    fun flush() {
-        try {
-            // Я уже попался на это один раз
-            // EncryptedFile требует, чтобы файл НЕ существовал перед записью
-            if (file.exists()) {
-                file.delete()
-            }
-
-            getEncryptedFile(file).openFileOutput().use {
-                it.write(json.encodeToString(cache).toByteArray())
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
+    private companion object {
+        val aead: StreamingAead by lazy {
+            StreamingAeadConfig.register()
+            AndroidKeysetManager.Builder()
+                .withSharedPref(
+                    Oasis.applicationContext,
+                    "__androidx_security_crypto_encrypted_file_keyset__",
+                    "__androidx_security_crypto_encrypted_file_pref__"
+                )
+                .withKeyTemplate(KeyTemplates.get("AES256_GCM_HKDF_4KB"))
+                .withMasterKeyUri("android-keystore://_androidx_security_master_key_")
+                .build()
+                .keysetHandle
+                .getPrimitive(RegistryConfiguration.get(), StreamingAead::class.java)
         }
     }
 }
